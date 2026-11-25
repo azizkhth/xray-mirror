@@ -1,0 +1,23 @@
+FJ3199	ethmoid
+FJ3200	frontal bone
+FJ3201	hyoid bone
+FJ3263	left inferior nasal concha
+FJ3265	left lacrimal bone
+FJ3269	left maxilla
+FJ3272	left nasal bone
+FJ3273	left palatine bone
+FJ3274	left parietal bone
+FJ3281	left temporal bone
+FJ3287	left zygomatic bone
+FJ3289	mandible
+FJ3309	occipital part of head
+FJ3369	right inferior nasal concha
+FJ3371	right lacrimal bone
+FJ3375	right maxilla
+FJ3378	right nasal bone
+FJ3379	right palatine bone
+FJ3380	right parietal bone
+FJ3386	right temporal bone
+FJ3392	right zygomatic bone
+FJ3394	sphenoid bone
+FJ3395	vomer

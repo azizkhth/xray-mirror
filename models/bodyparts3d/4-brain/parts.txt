@@ -1,0 +1,59 @@
+FJ1730	third ventricle
+FJ1731	fourth ventricle
+FJ1732	left angular gyrus
+FJ1733	right angular gyrus
+FJ1738	cerebral aqueduct
+FJ1739	left cingulate gyrus
+FJ1740	right cingulate gyrus
+FJ1743	habenula
+FJ1744	left inferior frontal gyrus
+FJ1745	right inferior frontal gyrus
+FJ1746	left inferior temporal gyrus
+FJ1747	right inferior temporal gyrus
+FJ1748	left insula
+FJ1749	right insula
+FJ1750	left internal capsule
+FJ1751	right internal capsule
+FJ1758	subcortex of left cerebral hemisphere
+FJ1759	left hippocampus
+FJ1760	hypothalamus
+FJ1762	left inferior colliculus
+FJ1767	left lateral ventricle
+FJ1769	medulla oblongata
+FJ1770	midbrain
+FJ1775	pons
+FJ1779	left superior colliculus
+FJ1780	intermediate hypothalamic region
+FJ1781	cerebellum
+FJ1783	left fusiform gyrus
+FJ1784	right fusiform gyrus
+FJ1785	left parahippocampal gyrus
+FJ1786	right parahippocampal gyrus
+FJ1787	left middle frontal gyrus
+FJ1788	right middle frontal gyrus
+FJ1789	left middle temporal gyrus
+FJ1790	right middle temporal gyrus
+FJ1791	left occipital lobe
+FJ1792	right occipital lobe
+FJ1795	pineal body
+FJ1797	left postcentral gyrus
+FJ1798	right postcentral gyrus
+FJ1800	left precentral gyrus
+FJ1801	right precentral gyrus
+FJ1806	subcortex of right cerebral hemisphere
+FJ1807	right hippocampus
+FJ1808	hypothalamus
+FJ1810	right inferior colliculus
+FJ1814	right lateral ventricle
+FJ1817	midbrain
+FJ1822	pons
+FJ1826	right superior colliculus
+FJ1828	intermediate hypothalamic region
+FJ1830	cerebellum
+FJ1831	medulla oblongata
+FJ1833	left superior frontal gyrus
+FJ1834	right superior frontal gyrus
+FJ1835	left superior parietal lobule
+FJ1836	right superior parietal lobule
+FJ1841	left supramarginal gyrus
+FJ1842	right supramarginal gyrus

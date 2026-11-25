@@ -1,0 +1,13 @@
+FJ3161	third cervical vertebra
+FJ3164	fourth cervical vertebra
+FJ3167	fifth cervical vertebra
+FJ3170	sixth cervical vertebra
+FJ3172	seventh cervical vertebra
+FJ3176	atlas
+FJ3177	axis
+FJ3202	intervertebral disk of axis
+FJ3213	intervertebral disk of third cervical vertebra
+FJ3218	intervertebral disk of fourth cervical vertebra
+FJ3219	intervertebral disk of fifth cervical vertebra
+FJ3220	intervertebral disk of sixth cervical vertebra
+FJ3221	intervertebral disk of seventh cervical vertebra

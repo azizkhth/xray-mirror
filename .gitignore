@@ -1,0 +1,7 @@
+# local tooling and personal files
+.claude/
+prompt.txt
+*.pdf
+
+# original BodyParts3D archive (the ready folders are enough for the site)
+models/bodyparts3d/download/

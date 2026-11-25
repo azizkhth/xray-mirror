@@ -1,0 +1,19 @@
+FJ1282	anterior chamber of left eyeball
+FJ1285	left choroid
+FJ1286	left choroid
+FJ1289	left cornea
+FJ1297	left iris
+FJ1299	left lacrimal gland
+FJ1305	left lens
+FJ1317	left sclera
+FJ1320	suspensory ligament of left lens
+FJ1331	left vitreous body
+FJ1336	right choroid
+FJ1337	right choroid
+FJ1340	right cornea
+FJ1348	right iris
+FJ1350	right lacrimal gland
+FJ1356	right lens
+FJ1368	right sclera
+FJ1371	suspensory ligament of right lens
+FJ1382	right vitreous body

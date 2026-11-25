@@ -1,0 +1,1953 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مرآة الأشعة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+select{font-family:inherit;font-size:14px;color:var(--txt);background:#0e2645;border:1px solid var(--line);border-radius:9px;padding:6px 8px;width:100%}
+#modelFile{display:none}
+#modelStatus{font-size:12px;color:var(--dim);line-height:1.6;margin-top:6px}
+:root{
+  --bg:#030a16; --panel:#071427; --card:#0a1b33; --line:#17365e; --txt:#dcecff; --dim:#8aa9cf;
+  --acc:#5fd4ff; --acc2:#ffd25f; --err:#ff6b6b; --ok:#5dff9b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:'Tajawal',system-ui,sans-serif}
+body{display:flex;flex-direction:row;overflow:hidden}
+#stageWrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:12px;min-width:0;min-height:0}
+#stage{width:100%;height:100%;object-fit:contain;display:block;background:#000;border-radius:12px;cursor:crosshair}
+#video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+#panel{width:310px;flex:0 0 310px;height:100%;overflow-y:auto;background:var(--panel);border-inline-start:1px solid var(--line);padding:14px 14px 28px}
+#panel h1{font-size:22px;margin:0 0 2px;font-weight:800;color:#fff}
+#panel .sub{margin:0 0 12px;color:var(--dim);font-size:13px}
+#panel section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+#panel h2{font-size:14px;margin:0 0 8px;color:var(--acc);font-weight:700}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;font-size:14px}
+.row label{cursor:pointer;display:flex;align-items:center;gap:8px}
+.row small{color:var(--dim);font-size:11px;direction:ltr}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc);cursor:pointer}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.slider{margin:8px 0}
+.slider .top{display:flex;justify-content:space-between;font-size:13px;color:var(--txt)}
+.slider .top span:last-child{color:var(--acc2);direction:ltr}
+.seg{display:flex;gap:6px}
+.seg button{flex:1}
+button{font-family:inherit;font-size:14px;font-weight:700;color:var(--txt);background:#0e2645;border:1px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+.seg button.on{background:var(--acc);color:#02101f;border-color:var(--acc)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.btns .wide{grid-column:1/-1}
+#recBtn.rec{background:#b3262e;border-color:#ff6b6b;color:#fff}
+#info{font-size:12px;color:var(--dim);line-height:1.6}
+#panelToggle{display:none}
+
+.overlay{position:absolute;inset:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;background:radial-gradient(ellipse at center,#0b2546 0%,#030a16 75%)}
+.overlay h2{font-size:clamp(28px,5vw,54px);margin:0 0 6px;font-weight:800;color:#fff;text-shadow:0 0 24px rgba(95,212,255,.55)}
+.overlay p{max-width:620px;color:var(--dim);font-size:clamp(14px,1.8vw,18px);line-height:1.7;margin:6px 0}
+#startBtn{margin-top:18px;font-size:clamp(20px,2.6vw,28px);padding:16px 46px;border-radius:16px;background:var(--acc);color:#02101f;border:none;box-shadow:0 0 30px rgba(95,212,255,.5)}
+#startBtn:disabled{opacity:.6;cursor:wait}
+#loadStatus{margin-top:14px;color:var(--acc2);font-size:15px;min-height:22px}
+#err{position:absolute;inset:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;background:rgba(20,4,8,.94);z-index:5}
+#err[hidden]{display:none}
+#err h3{color:var(--err);font-size:24px;margin:0 0 10px}
+#err p{max-width:620px;font-size:17px;line-height:1.7;margin:4px 0}
+#errDetail{direction:ltr;color:#a88;font-size:12px!important;font-family:monospace}
+.tiny{font-size:12px!important;color:#6f8db3!important}
+
+@media (max-width:860px){
+  body{flex-direction:column;overflow-y:auto;height:auto;min-height:100%}
+  #stageWrap{flex:none;height:74vh;padding:8px}
+  .overlay,#err{inset:8px}
+  #panel{width:100%;flex:none;height:auto;border-inline-start:none;border-top:1px solid var(--line)}
+  #panelToggle{display:block;width:100%;margin-bottom:10px}
+  #panel.collapsed section{display:none}
+}
+</style>
+<script>
+  // Fallback error display in case the module script fails to load or parse.
+  window.__fatal = function (msg, detail) {
+    var e = document.getElementById('err'); if (!e) { alert(msg); return; }
+    e.hidden = false;
+    document.getElementById('errText').textContent = msg;
+    document.getElementById('errDetail').textContent = detail || '';
+  };
+  window.addEventListener('error', function (ev) {
+    if (!window.__appStarted) window.__fatal('تعذّر تشغيل الصفحة. جرّب فتحها في متصفح Google Chrome حديث.', ev.message || '');
+  });
+</script>
+</head>
+<body>
+<div id="stageWrap">
+  <canvas id="stage" width="1280" height="720" aria-label="مسرح مرآة الأشعة"></canvas>
+  <video id="video" playsinline muted autoplay></video>
+
+  <div class="overlay" id="startOverlay">
+    <h2>مرآة الأشعة</h2>
+    <p>قف أمام الكاميرا، وسترى جمجمتك ودماغك وعضلات وجهك وعينيك وعظام يدك مرسومةً فوق رأسك ويدك الحقيقيين، وتتحرك معك.</p>
+    <p class="tiny">يعمل التتبّع بالكامل داخل متصفحك (MediaPipe) — لا يُرسَل أي فيديو إلى أي خادم.</p>
+    <button id="startBtn">ابدأ التجربة</button>
+    <div id="loadStatus">جارٍ التحضير…</div>
+    <p class="tiny">نموذج تشريحي تعليمي، ليس أشعة حقيقية ولا فحصاً طبياً.</p>
+  </div>
+
+  <div id="err" hidden>
+    <h3>حدثت مشكلة</h3>
+    <p id="errText"></p>
+    <p id="errDetail"></p>
+    <button onclick="location.reload()" style="margin-top:14px">إعادة تحميل الصفحة</button>
+  </div>
+</div>
+
+<aside id="panel">
+  <button id="panelToggle">⚙ الإعدادات</button>
+  <h1>مرآة الأشعة</h1>
+  <p class="sub">لوحة التحكم (لا تظهر في التسجيل)</p>
+
+  <section>
+    <h2>طبقات الرأس</h2>
+    <div class="row"><label><input type="checkbox" data-key="skull">الجمجمة</label><small>Skull</small></div>
+    <div class="row"><label><input type="checkbox" data-key="brain">الدماغ</label><small>Brain</small></div>
+    <div class="row"><label><input type="checkbox" data-key="muscles">عضلات الوجه</label><small>Facial muscles</small></div>
+    <div class="row"><label><input type="checkbox" data-key="eyes">العينان</label><small>Eyes</small></div>
+    <div class="row"><label><input type="checkbox" data-key="vessels">الأوعية الدموية</label><small>Vessels</small></div>
+    <div class="row"><label><input type="checkbox" data-key="ear">الأذن</label><small>Ear</small></div>
+    <div class="row"><label><input type="checkbox" data-key="sinus">الجيوب الأنفية</label><small>Sinuses</small></div>
+    <div class="row"><label><input type="checkbox" data-key="spine">الفقرات العنقية</label><small>Cervical spine</small></div>
+    <div class="row"><label><input type="checkbox" data-key="headOutline">حدود الرأس</label><small>Outline</small></div>
+  </section>
+
+  <section>
+    <h2>طبقات اليد</h2>
+    <div class="row"><label><input type="checkbox" data-key="handBones">عظام اليد (27)</label><small>Hand bones</small></div>
+    <div class="row"><label><input type="checkbox" data-key="handMuscles">عضلات اليد</label><small>Hand muscles</small></div>
+    <div class="row"><label><input type="checkbox" data-key="handNerves">الأعصاب ونفق الرسغ</label><small>Nerves</small></div>
+    <div class="row"><label><input type="checkbox" data-key="tendons">أوتار الأصابع</label><small>Tendons</small></div>
+    <div class="row"><label><input type="checkbox" data-key="handOutline">حدود اليد</label><small>Outline</small></div>
+  </section>
+
+  <section>
+    <h2>العرض</h2>
+    <div class="row"><label><input type="checkbox" data-key="allNames">إظهار كل الأسماء دائماً</label></div>
+    <div class="row"><label><input type="checkbox" data-key="dots">إظهار نقاط التتبّع</label><small>AI points</small></div>
+    <div class="slider"><div class="top"><span>المظهر</span></div>
+      <div class="seg" data-seg="look"><button data-val="xray">أشعة سينية</button><button data-val="color">نموذج ملوّن</button></div></div>
+    <div class="slider"><div class="top"><span>طريقة الكشف</span></div>
+      <div class="seg" data-seg="mode"><button data-val="full">عرض كامل</button><button data-val="lens">عدسة الأشعة</button></div></div>
+    <div class="slider"><div class="top"><span>حجم العدسة</span><span id="v_lens"></span></div><input type="range" data-key="lens" min="0.10" max="0.45" step="0.01"></div>
+    <div class="slider"><div class="top"><span>ظهور وجهي الحقيقي</span><span id="v_cam"></span></div><input type="range" data-key="cam" min="0" max="1" step="0.01"></div>
+    <div class="slider"><div class="top"><span>شكل المسرح</span></div>
+      <div class="seg" data-seg="ratio"><button data-val="16:9">16:9 لابتوب</button><button data-val="9:16">9:16 ريلز</button></div></div>
+  </section>
+
+  <section>
+    <h2>ضبط النموذج على الرأس</h2>
+    <div class="slider"><div class="top"><span>الحجم</span><span id="v_size"></span></div><input type="range" data-key="size" min="0.8" max="1.25" step="0.01"></div>
+    <div class="slider"><div class="top"><span>أعلى / أسفل</span><span id="v_up"></span></div><input type="range" data-key="up" min="-3" max="3" step="0.1"></div>
+    <div class="slider"><div class="top"><span>أمام / خلف</span><span id="v_fwd"></span></div><input type="range" data-key="fwd" min="-4" max="4" step="0.1"></div>
+    <div class="btns"><button id="calBtn" class="wide">معايرة تلقائية (انظر للكاميرا مباشرة)</button></div>
+  </section>
+
+  <section>
+    <h2>نماذج ثلاثية الأبعاد حقيقية</h2>
+    <div class="slider"><div class="top"><span>نوع الملفات التالية (يحدّد اللون)</span></div>
+      <select data-key="cType">
+        <option value="bone">عظام (جمجمة/فقرات)</option>
+        <option value="brain">دماغ</option>
+        <option value="muscle">عضلات</option>
+        <option value="vessel">أوعية دموية</option>
+        <option value="nerve">أعصاب</option>
+      </select></div>
+    <input type="file" id="modelFile" multiple accept=".obj,.glb,.gltf,.stl">
+    <div class="btns" id="presetBtns" hidden>
+      <button data-preset="1-skull-bones">🦴 جمجمة حقيقية</button><button data-preset="3-cervical-spine">🦴 فقرات العنق</button>
+      <button data-preset="2-eyes">👁 العينان</button><button data-preset="4-brain">🧠 الدماغ (ثقيل)</button>
+    </div>
+    <div class="btns">
+      <button id="loadModelBtn" class="wide">📂 تحميل نموذج (OBJ / GLB / STL)</button>
+      <button data-rot="x">تدوير ↻ X</button><button data-rot="y">تدوير ↻ Y</button>
+      <button data-rot="z">تدوير ↻ Z</button><button id="mirrorModelBtn">قلب يمين/يسار</button>
+      <button id="fitModelBtn">ملاءمة الحجم للرأس</button><button id="clearModelBtn">حذف النماذج</button>
+    </div>
+    <div class="slider"><div class="top"><span>حجم النموذج</span><span id="v_cSize"></span></div><input type="range" data-key="cSize" min="0.5" max="1.6" step="0.01"></div>
+    <div class="slider"><div class="top"><span>أعلى / أسفل</span><span id="v_cUp"></span></div><input type="range" data-key="cUp" min="-8" max="8" step="0.1"></div>
+    <div class="slider"><div class="top"><span>أمام / خلف</span><span id="v_cFwd"></span></div><input type="range" data-key="cFwd" min="-8" max="8" step="0.1"></div>
+    <div class="row"><label><input type="checkbox" data-key="custom">إظهار النموذج المحمّل</label></div>
+    <div class="row"><label><input type="checkbox" data-key="hideSimple">إخفاء الأشكال المبسّطة</label></div>
+    <div class="row"><label><input type="checkbox" data-key="bp3dCredit">الملفات من BodyParts3D (إظهار الحقوق)</label></div>
+    <div id="modelStatus">حمّل ملفات من جهازك بعد الضغط على «ابدأ التجربة». ملفات BodyParts3D (FJxxxx.obj) تُعرف تلقائياً وتوضع بمقياسها الحقيقي.</div>
+  </section>
+
+  <section>
+    <h2>تسجيل وإعادة ضبط</h2>
+    <div class="btns">
+      <button id="recBtn" class="wide">● تسجيل فيديو</button>
+      <button id="resetBtn" class="wide">إعادة الضبط</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>طريقة الاستخدام</h2>
+    <div id="info">
+      • الأسماء مخفية: انقر على أي جزء (أو أشر إليه بالسبابة نصف ثانية) ليظهر اسمه ومعلومة عنه، وانقر مرة أخرى لإخفائه.<br>
+      • في وضع «عدسة الأشعة» تتبع العدسة طرف سبابتك.<br>
+      • افتح فمك ليتحرك الفك السفلي.<br>
+      • يمكنك أيضاً النقر بالفأرة على أي جزء.<br>
+      • «تحميل نموذج»: اختر ملفات OBJ/GLB/STL من جهازك (مثل ملفات BodyParts3D) أو اسحبها إلى الشاشة.<br>
+      <span id="engine"></span>
+    </div>
+  </section>
+</aside>
+
+<script type="module">
+window.__appStarted = true;
+// =====================================================================
+//  Basic helpers & UI
+// =====================================================================
+const $ = (s) => document.querySelector(s);
+const stage = $('#stage');
+const ctx = stage.getContext('2d');
+const video = $('#video');
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const lerpP = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const midP = (a, b) => lerpP(a, b, 0.5);
+
+function showError(msg, detail) {
+  const e = $('#err'); e.hidden = false;
+  $('#errText').textContent = msg;
+  $('#errDetail').textContent = detail || '';
+}
+window.addEventListener('error', (ev) => showError('حدث خطأ غير متوقع في الصفحة.', ev.message || ''));
+window.addEventListener('unhandledrejection', (ev) => {
+  const r = ev.reason; showError((r && r.userMsg) || 'حدث خطأ غير متوقع أثناء التحميل.', String((r && r.message) || r || ''));
+});
+const setLoad = (t) => { $('#loadStatus').textContent = t; };
+function appError(userMsg, cause) { const e = new Error((cause && cause.message) || String(cause || userMsg)); e.userMsg = userMsg; return e; }
+
+// ---------------- settings
+const DEF = {
+  skull: true, brain: true, muscles: true, eyes: true, vessels: true, ear: true, sinus: true, spine: true, headOutline: true,
+  handBones: true, handMuscles: true, handNerves: true, tendons: false, handOutline: true, allNames: false, dots: false,
+  look: 'xray', mode: 'full', lens: 0.24, camX: 0.38, camC: 0.85, size: 1, up: 0, fwd: 0, ratio: '16:9',
+  cType: 'bone', cSize: 1, cUp: 0, cFwd: 0, custom: true, hideSimple: false, bp3dCredit: true
+};
+const HEAD_LAYERS = ['skull', 'brain', 'muscles', 'eyes', 'vessels', 'ear', 'sinus', 'spine'];
+const LS_KEY = 'xrayMirror.v1';
+let S = { ...DEF };
+try { const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (saved) S = { ...DEF, ...saved }; } catch (e) { /* storage unavailable */ }
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
+
+// ---------------- stage geometry
+let SW = 1280, SH = 720, U = 1, SAFE = { top: 0, bottom: 720 };
+let W = 1280, H = 720;          // raw video working size (also the WebGL render size)
+let mk = 1, mox = 0, moy = 0, mdw = 1280, mdh = 720;   // mirror + cover-crop mapping
+function setRatio() {
+  if (S.ratio === '9:16') { SW = 1080; SH = 1920; U = 1.75; SAFE = { top: 250, bottom: 1670 }; }
+  else { SW = 1280; SH = 720; U = 1; SAFE = { top: 0, bottom: 720 }; }
+  stage.width = SW; stage.height = SH;
+  computeMap();
+}
+
+// ---------------- panel wiring
+function syncUI() {
+  document.querySelectorAll('input[type=checkbox][data-key]').forEach((el) => { el.checked = !!S[el.dataset.key]; });
+  document.querySelectorAll('input[type=range][data-key]').forEach((el) => {
+    const k = el.dataset.key;
+    el.value = k === 'cam' ? (S.look === 'xray' ? S.camX : S.camC) : S[k];
+  });
+  document.querySelectorAll('.seg').forEach((seg) => {
+    seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', S[seg.dataset.seg] === b.dataset.val));
+  });
+  $('#v_lens').textContent = Math.round(S.lens * 100) + '%';
+  $('#v_cam').textContent = Math.round((S.look === 'xray' ? S.camX : S.camC) * 100) + '%';
+  $('#v_size').textContent = S.size.toFixed(2) + '×';
+  $('#v_up').textContent = (S.up > 0 ? '+' : '') + S.up.toFixed(1) + ' cm';
+  $('#v_fwd').textContent = (S.fwd > 0 ? '+' : '') + S.fwd.toFixed(1) + ' cm';
+  $('#v_cSize').textContent = S.cSize.toFixed(2) + '×';
+  $('#v_cUp').textContent = (S.cUp > 0 ? '+' : '') + S.cUp.toFixed(1) + ' cm';
+  $('#v_cFwd').textContent = (S.cFwd > 0 ? '+' : '') + S.cFwd.toFixed(1) + ' cm';
+  document.querySelectorAll('select[data-key]').forEach((el) => { el.value = S[el.dataset.key]; });
+}
+document.querySelectorAll('select[data-key]').forEach((el) => el.addEventListener('change', () => {
+  S[el.dataset.key] = el.value; save(); syncUI();
+}));
+document.querySelectorAll('input[type=checkbox][data-key]').forEach((el) => el.addEventListener('change', () => {
+  S[el.dataset.key] = el.checked; save(); syncUI();
+}));
+document.querySelectorAll('input[type=range][data-key]').forEach((el) => el.addEventListener('input', () => {
+  const k = el.dataset.key, v = parseFloat(el.value);
+  if (k === 'cam') { if (S.look === 'xray') S.camX = v; else S.camC = v; } else S[k] = v;
+  save(); syncUI();
+}));
+document.querySelectorAll('.seg').forEach((seg) => seg.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const k = seg.dataset.seg; S[k] = b.dataset.val; save(); syncUI();
+  if (k === 'ratio') setRatio();
+  if (k === 'look') applyMaterials();
+}));
+$('#panelToggle').addEventListener('click', () => $('#panel').classList.toggle('collapsed'));
+$('#resetBtn').addEventListener('click', () => { S = { ...DEF }; save(); setRatio(); syncUI(); resetCalib(); applyMaterials(); });
+$('#calBtn').addEventListener('click', () => resetCalib());
+if (window.matchMedia('(max-width:860px)').matches) $('#panel').classList.add('collapsed');
+setRatio(); syncUI();
+
+// =====================================================================
+//  Library + model loading (starts immediately, camera waits for click)
+// =====================================================================
+const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const HAND_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+let THREE = null, vision = null, FaceLandmarkerC = null, HandLandmarkerC = null;
+const det = { face: null, hand: null, faceDelegate: '', handDelegate: '', faceOpts: null, handOpts: null };
+
+async function createLM(Cls, opts) {
+  try {
+    const lm = await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'GPU' } });
+    return { lm, delegate: 'GPU' };
+  } catch (e) {
+    console.warn('GPU delegate failed, using CPU', e);
+    const lm = await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'CPU' } });
+    return { lm, delegate: 'CPU' };
+  }
+}
+
+const libsReady = (async () => {
+  setLoad('جارٍ تحميل مكتبة الرسوم ثلاثية الأبعاد…');
+  try { THREE = await import(THREE_URL); }
+  catch (e) { throw appError('تعذّر تحميل مكتبة Three.js. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', e); }
+
+  setLoad('جارٍ تحميل محرّك الذكاء الاصطناعي MediaPipe…');
+  try {
+    const { FilesetResolver, FaceLandmarker, HandLandmarker } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+    FaceLandmarkerC = FaceLandmarker; HandLandmarkerC = HandLandmarker;
+    vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  } catch (e) { throw appError('تعذّر تحميل MediaPipe. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', e); }
+
+  det.faceOpts = {
+    baseOptions: { modelAssetPath: FACE_MODEL },
+    runningMode: 'VIDEO', numFaces: 1,
+    outputFacialTransformationMatrixes: true, outputFaceBlendshapes: true,
+    minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5
+  };
+  det.handOpts = {
+    baseOptions: { modelAssetPath: HAND_MODEL },
+    runningMode: 'VIDEO', numHands: 2,
+    minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.6, minTrackingConfidence: 0.5
+  };
+  setLoad('جارٍ تحميل نموذج تتبّع الوجه (478 نقطة)…');
+  try { const r = await createLM(FaceLandmarkerC, det.faceOpts); det.face = r.lm; det.faceDelegate = r.delegate; }
+  catch (e) { throw appError('تعذّر تحميل نموذج تتبّع الوجه.', e); }
+  setLoad('جارٍ تحميل نموذج تتبّع اليد (21 نقطة لكل يد)…');
+  try { const r = await createLM(HandLandmarkerC, det.handOpts); det.hand = r.lm; det.handDelegate = r.delegate; }
+  catch (e) { throw appError('تعذّر تحميل نموذج تتبّع اليد.', e); }
+  $('#engine').textContent = `المعالج: الوجه ${det.faceDelegate} · اليد ${det.handDelegate}`;
+  setLoad('النماذج جاهزة ✓ اضغط «ابدأ التجربة»');
+})();
+libsReady.catch(() => { /* surfaced on start click and via unhandledrejection */ });
+
+// =====================================================================
+//  Camera start
+// =====================================================================
+function camErrorMsg(e) {
+  const n = e && e.name;
+  if (n === 'NotAllowedError' || n === 'SecurityError') return 'تم رفض إذن الكاميرا. اسمح للمتصفح باستخدام الكاميرا (رمز الكاميرا في شريط العنوان) ثم أعد تحميل الصفحة.';
+  if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'لم يتم العثور على كاميرا في هذا الجهاز.';
+  if (n === 'NotReadableError') return 'الكاميرا مستخدمة حالياً من تطبيق آخر. أغلقه ثم حاول مرة أخرى.';
+  return 'تعذّر تشغيل الكاميرا. افتح الملف في Google Chrome واسمح باستخدام الكاميرا.';
+}
+$('#startBtn').addEventListener('click', async () => {
+  const btn = $('#startBtn'); btn.disabled = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showError('هذا المتصفح لا يسمح بالوصول إلى الكاميرا هنا. افتح الملف في Google Chrome.'); btn.disabled = false; return;
+  }
+  setLoad('جارٍ تشغيل الكاميرا…');
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) { showError(camErrorMsg(e), e && e.name); btn.disabled = false; return; }
+  video.srcObject = stream;
+  try { await video.play(); } catch (e) { /* autoplay muted is allowed; continue */ }
+  await new Promise((res) => { if (video.videoWidth) res(); else video.addEventListener('loadedmetadata', res, { once: true }); });
+  try { await libsReady; } catch (e) { showError(e.userMsg || 'تعذّر تحميل النماذج.', e.message); return; }
+  try { initThree(); } catch (e) { showError('تعذّر تشغيل الرسوم ثلاثية الأبعاد (WebGL). فعّل تسريع العتاد في المتصفح.', e.message); return; }
+  try { await document.fonts.load('700 20px Tajawal'); } catch (e) { /* font optional */ }
+  $('#startOverlay').style.display = 'none';
+  requestAnimationFrame(loop);
+});
+
+// =====================================================================
+//  Video ↔ stage mapping (mirror + cover crop). MediaPipe sees the raw video.
+// =====================================================================
+function computeMap() {
+  mk = Math.max(SW / W, SH / H); mdw = W * mk; mdh = H * mk; mox = (SW - mdw) / 2; moy = (SH - mdh) / 2;
+}
+const v2s = (x, y) => ({ x: SW - mox - x * mk, y: moy + y * mk });   // raw px -> stage px (mirrored)
+const n2s = (p) => v2s(p.x * W, p.y * H);                              // normalized landmark -> stage
+const s2v = (sx, sy) => ({ x: (SW - mox - sx) / mk, y: (sy - moy) / mk });
+function drawMirrored(c, img) {
+  c.save(); c.setTransform(-1, 0, 0, 1, SW, 0); c.drawImage(img, mox, moy, mdw, mdh); c.restore();
+}
+
+// =====================================================================
+//  Anatomy data (canonical face space, centimetres; +x is one side, y up, z toward camera)
+// =====================================================================
+const LAYER_COL = { skull: '#eaf6ff', brain: '#c9a8ff', muscles: '#ff8f98', eyes: '#9fe6ff', vessels: '#ff6168', hand: '#ffe38f',
+  ear: '#ffc98a', sinus: '#7ff0d0', spine: '#eaf6ff', custom: '#ffffff' };
+const PART_DEFS = [
+  // id, layer, Arabic, Latin/English, fact, opts
+  ['frontal', 'skull', 'العظم الجبهي', 'Frontal bone', 'يشكّل الجبهة وسقف محجرَي العينين.'],
+  ['parietal', 'skull', 'العظم الجداري', 'Parietal bone', 'عظمان متقابلان يشكّلان معظم سقف الجمجمة وجانبيها.'],
+  ['temporal', 'skull', 'العظم الصدغي', 'Temporal bone', 'يحتوي على أجزاء الأذن الوسطى والداخلية.'],
+  ['occipital', 'skull', 'العظم القذالي', 'Occipital bone', 'في مؤخرة الجمجمة، وفيه الثقبة العظمى التي يتصل عبرها الدماغ بالحبل الشوكي.'],
+  ['sphenoid', 'skull', 'العظم الوتدي', 'Sphenoid bone', 'عظم على شكل فراشة في قاعدة الجمجمة، ويتصل بجميع عظام القحف الأخرى.'],
+  ['orbit', 'skull', 'محجر العين', 'Orbit', 'تجويف عظمي تشترك في تكوينه 7 عظام، ويحمي مقلة العين.'],
+  ['nasal', 'skull', 'عظم الأنف', 'Nasal bone', 'عظمان صغيران يشكّلان جسر الأنف، وبقية الأنف غضاريف.'],
+  ['zygomatic', 'skull', 'العظم الوجني', 'Zygomatic bone', 'عظم الخدّ، ويشكّل جزءاً من الجدار الجانبي لمحجر العين.'],
+  ['maxilla', 'skull', 'الفك العلوي', 'Maxilla', 'يحمل الأسنان العلوية ويشكّل جزءاً من سقف الفم.'],
+  ['mandible', 'skull', 'الفك السفلي', 'Mandible', 'أكبر عظام الوجه وأقواها، وهو العظم المتحرّك الوحيد في الجمجمة (عدا عُظيمات الأذن).'],
+  ['teeth', 'skull', 'الأسنان', 'Teeth', 'يملك الإنسان البالغ عادةً 32 سناً.'],
+  ['frontalLobe', 'brain', 'الفص الجبهي', 'Frontal lobe', 'يرتبط بالتخطيط واتخاذ القرار والحركة الإرادية.'],
+  ['parietalLobe', 'brain', 'الفص الجداري', 'Parietal lobe', 'يعالج الإحساس باللمس والألم والحرارة.'],
+  ['temporalLobe', 'brain', 'الفص الصدغي', 'Temporal lobe', 'يعالج السمع، وله دور مهم في الذاكرة.'],
+  ['occipitalLobe', 'brain', 'الفص القذالي', 'Occipital lobe', 'المركز الرئيسي لمعالجة الرؤية.'],
+  ['cerebellum', 'brain', 'المخيخ', 'Cerebellum', 'ينسّق الحركة ويحفظ التوازن.'],
+  ['brainstem', 'brain', 'جذع الدماغ', 'Brainstem', 'يتحكّم في وظائف أساسية مثل التنفس ونبض القلب.'],
+  ['frontalis', 'muscles', 'العضلة الجبهية', 'Frontalis', 'ترفع الحاجبين وتجعّد الجبهة.'],
+  ['temporalis', 'muscles', 'العضلة الصدغية', 'Temporalis', 'عضلة مضغ مروحية الشكل ترفع الفك السفلي.'],
+  ['orbOculi', 'muscles', 'العضلة الدويرية العينية', 'Orbicularis oculi', 'تُغلق الجفنين عند الرمش.'],
+  ['orbOris', 'muscles', 'العضلة الدويرية الفموية', 'Orbicularis oris', 'تُغلق الشفتين وتضمّهما.'],
+  ['zygMajor', 'muscles', 'العضلة الوجنية الكبيرة', 'Zygomaticus major', 'ترفع زاوية الفم عند الابتسام.'],
+  ['masseter', 'muscles', 'العضلة الماضغة', 'Masseter', 'عضلة مضغ قوية ترفع الفك السفلي لإغلاق الفم.'],
+  ['buccinator', 'muscles', 'العضلة المبوِّقة', 'Buccinator', 'تضغط الخدّ على الأسنان أثناء المضغ والنفخ.'],
+  ['eyeball', 'eyes', 'مقلة العين', 'Eyeball', 'قطرها عند البالغ نحو 2.4 سم.'],
+  ['opticNerve', 'eyes', 'العصب البصري', 'Optic nerve', 'ينقل الإشارات البصرية من الشبكية إلى الدماغ.'],
+  ['eyeMuscles', 'eyes', 'العضلات المحرّكة للعين (6)', 'Extraocular muscles', '6 عضلات تحرّك كل عين: 4 مستقيمة و2 مائلة.'],
+  ['sRectus', 'eyes', 'العضلة المستقيمة العلوية', 'Superior rectus', 'ترفع العين إلى الأعلى.', { label: false }],
+  ['iRectus', 'eyes', 'العضلة المستقيمة السفلية', 'Inferior rectus', 'تخفض العين إلى الأسفل.', { label: false }],
+  ['mRectus', 'eyes', 'العضلة المستقيمة الإنسية', 'Medial rectus', 'تدير العين نحو الأنف.', { label: false }],
+  ['lRectus', 'eyes', 'العضلة المستقيمة الوحشية', 'Lateral rectus', 'تدير العين نحو الخارج.', { label: false }],
+  ['sOblique', 'eyes', 'العضلة المائلة العلوية', 'Superior oblique', 'يمرّ وترها عبر حلقة تُسمّى البكرة، وتساعد على خفض العين.', { label: false }],
+  ['iOblique', 'eyes', 'العضلة المائلة السفلية', 'Inferior oblique', 'تساعد على رفع العين وتدويرها نحو الخارج.', { label: false }],
+  ['facialA', 'vessels', 'الشريان الوجهي', 'Facial artery', 'يمكن جسّ نبضه عند الحافة السفلية للفك أمام العضلة الماضغة.'],
+  ['stA', 'vessels', 'الشريان الصدغي السطحي', 'Superficial temporal artery', 'يمكن جسّ نبضه أمام الأذن مباشرة.'],
+  // ear
+  ['auricle', 'ear', 'صيوان الأذن', 'Auricle (pinna)', 'يجمع الأصوات ويوجّهها إلى القناة السمعية، ويتكوّن من غضروف مرن.'],
+  ['earCanal', 'ear', 'القناة السمعية الخارجية', 'External acoustic meatus', 'طولها نحو 2.5 سم، وتنتهي عند غشاء الطبلة.'],
+  ['eardrum', 'ear', 'غشاء الطبلة', 'Tympanic membrane', 'يهتز مع الصوت وينقل الاهتزاز إلى عُظيمات السمع.'],
+  ['ossicles', 'ear', 'عُظيمات السمع', 'Auditory ossicles', 'المطرقة والسندان والركاب، والركاب أصغر عظمة في جسم الإنسان.'],
+  ['cochlea', 'ear', 'القوقعة', 'Cochlea', 'عضو السمع في الأذن الداخلية، حلزونية الشكل بنحو دورتين ونصف.'],
+  ['semicircular', 'ear', 'القنوات الهلالية', 'Semicircular canals', '3 قنوات متعامدة تحسّ بدوران الرأس وتساعد على حفظ التوازن.'],
+  // paranasal sinuses
+  ['frontalSinus', 'sinus', 'الجيب الجبهي', 'Frontal sinus', 'تجويف هوائي داخل العظم الجبهي فوق محجرَي العينين.'],
+  ['maxSinus', 'sinus', 'الجيب الفكي', 'Maxillary sinus', 'أكبر الجيوب الأنفية، ويقع في الفك العلوي أسفل العين.'],
+  ['ethSinus', 'sinus', 'الخلايا الغربالية', 'Ethmoid air cells', 'مجموعة من الخلايا الهوائية الصغيرة بين العينين.'],
+  ['sphSinus', 'sinus', 'الجيب الوتدي', 'Sphenoid sinus', 'يقع داخل جسم العظم الوتدي خلف تجويف الأنف.'],
+  // cervical spine
+  ['atlas', 'spine', 'الفقرة العنقية الأولى (الأطلس)', 'C1 · Atlas', 'تحمل الجمجمة، وهي حلقة عظمية ليس لها جسم فقري.'],
+  ['axis', 'spine', 'الفقرة العنقية الثانية (المحور)', 'C2 · Axis', 'لها نتوء سِنّي يدور حوله الأطلس عند التفات الرأس يميناً ويساراً.'],
+  ['cervical', 'spine', 'الفقرات العنقية (3 إلى 6)', 'C3–C6 vertebrae', 'في نتوءاتها المستعرضة ثقوب يمرّ منها الشريان الفقري.'],
+  ['c7', 'spine', 'الفقرة العنقية السابعة (البارزة)', 'C7 · Vertebra prominens', 'نتوؤها الشوكي طويل ويمكن تحسّسه أسفل مؤخرة العنق.']
+];
+// the 16 tooth types (8 per jaw): picked individually, named on click
+const TOOTH_TYPES = [
+  ['القاطع المركزي', 'central incisor', 'تقطع القواطع الطعام بحافتها الحادة.'],
+  ['القاطع الجانبي', 'lateral incisor', 'تقطع القواطع الطعام بحافتها الحادة.'],
+  ['الناب', 'canine', 'أطول الأسنان جذراً، وتمزّق الطعام.'],
+  ['الضاحك الأول', 'first premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.'],
+  ['الضاحك الثاني', 'second premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.'],
+  ['الرحى الأولى', 'first molar', 'أول سنّ دائمة تظهر في الفم عادةً، في نحو السادسة من العمر.'],
+  ['الرحى الثانية', 'second molar', 'تظهر عادةً في نحو الثانية عشرة من العمر.'],
+  ['الرحى الثالثة (ضرس العقل)', 'third molar · wisdom tooth', 'تظهر عادةً بين 17 و25 سنة، وقد لا تظهر عند بعض الناس.']
+];
+for (const [jaw, jAr, jEn] of [['U', 'العلوي', 'Upper'], ['L', 'السفلي', 'Lower']]) {
+  TOOTH_TYPES.forEach(([ar, en, fact], i) => {
+    // molars (الرحى) are feminine in Arabic; keep "(ضرس العقل)" at the end
+    const adj = i >= 5 ? jAr + 'ة' : jAr;
+    const m = ar.match(/^(.*?)( \(.+\))?$/);
+    PART_DEFS.push([`tooth${jaw}${i}`, 'skull', `${m[1]} ${adj}${m[2] || ''}`, `${jEn} ${en}`, fact, { label: false }]);
+  });
+}
+const PARTS = {}; const PART_LIST = [];
+{
+  let alt = 0;
+  for (const [id, layer, ar, en, fact, opts] of PART_DEFS) {
+    const p = { id, layer, ar, en, fact, label: !(opts && opts.label === false), meshes: [], anchors: [], pref: 0 };
+    PARTS[id] = p; PART_LIST.push(p);
+  }
+  // bilateral parts alternate preferred side so the two label columns stay balanced
+  for (const id of ['parietal', 'temporal', 'sphenoid', 'orbit', 'zygomatic', 'maxilla', 'mandible', 'frontalLobe', 'parietalLobe',
+    'temporalLobe', 'occipitalLobe', 'cerebellum', 'frontalis', 'temporalis', 'orbOculi', 'orbOris', 'zygMajor', 'masseter',
+    'buccinator', 'eyeball', 'opticNerve', 'eyeMuscles', 'facialA', 'stA', 'auricle', 'earCanal', 'eardrum', 'ossicles', 'cochlea',
+    'semicircular', 'frontalSinus', 'maxSinus', 'ethSinus']) { PARTS[id].pref = alt; alt ^= 1; }
+}
+
+// canonical reference points (cm)
+const P0v = [0, 2.5, 3.9];        // midpoint between the irises (calibration pivot)
+const IRIS_X = 3.15, EYE_Y = 2.5, EYE_Z = 2.6, EYE_R = 1.2;
+const CHINv = [0, -9.0, 4.6];
+const CRAN_C = [0, 3.2, -3.0], CRAN_R = [7.0, 8.6, 9.0];
+const TMJv = [0, -0.2, -1.8];
+
+// =====================================================================
+//  Three.js scene
+// =====================================================================
+let renderer, scene, camera, glCanvas, bloomCanvas, bctx, headRoot, calibG, content, jaw, oris = [], oculi = [];
+let customRoot = null, c1Ref = null; const vertebrae = [];
+const layerGroups = {}; const allMeshes = []; const pickByLayer = {};
+let raycaster, tv, ndc;
+const MATX = {}, MATC = {}; let HI_X, HI_C;
+
+const XRAY_VS = `varying vec3 vN; varying vec3 vV;
+void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
+const XRAY_FS = `uniform vec3 uColor; uniform float uBase; uniform float uRim; uniform float uPow;
+varying vec3 vN; varying vec3 vV;
+void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); float i = clamp(uBase + uRim * pow(f, uPow), 0.0, 1.0);
+gl_FragColor = vec4(uColor * i, i); }`;
+const XCFG = {
+  bone: [[0.84, 0.94, 1.0], 0.08, 0.85, 2.0], teeth: [[0.92, 0.98, 1.0], 0.45, 0.55, 1.5],
+  brain: [[0.62, 0.55, 1.0], 0.035, 0.36, 2.2], muscle: [[1.0, 0.55, 0.62], 0.03, 0.32, 2.0],
+  eye: [[0.66, 0.9, 1.0], 0.06, 0.6, 2.0], nerve: [[1.0, 0.92, 0.6], 0.18, 0.5, 1.5], vessel: [[1.0, 0.38, 0.45], 0.38, 0.55, 1.4],
+  cartilage: [[1.0, 0.82, 0.6], 0.04, 0.45, 2.0], inner: [[1.0, 0.85, 0.55], 0.3, 0.6, 1.4], sinus: [[0.45, 1.0, 0.85], 0.05, 0.5, 2.0]
+};
+const CCFG = {
+  bone: { c: '#e8dcc0', o: 0.55 }, teeth: { c: '#fbf6ea' },
+  frontalLobe: { c: '#f29bb0' }, parietalLobe: { c: '#f5cf72' }, temporalLobe: { c: '#8fd18b' }, occipitalLobe: { c: '#79b6f2' },
+  cerebellum: { c: '#f0a35e' }, brainstem: { c: '#d9b48f' },
+  muscle: { c: '#c63b48', o: 0.82, ds: true }, eye: { c: '#f5f3ee' }, iris: { c: '#3f7fc4' }, pupil: { c: '#0b0b0b' },
+  nerve: { c: '#f1d27a' }, eyeMuscle: { c: '#b8404a' }, artery: { c: '#e0262b' },
+  cartilage: { c: '#f2b89a', o: 0.75, ds: true }, inner: { c: '#f3c35c' }, ossicle: { c: '#fff4dc' }, eardrum: { c: '#d9c9b0', ds: true },
+  sinus: { c: '#6fe3c9', o: 0.55 }, vertebra: { c: '#e8dcc0' },
+  custom_bone: { c: '#e8dcc0' }, custom_brain: { c: '#f2a7b8' }, custom_muscle: { c: '#c63b48' }, custom_vessel: { c: '#e0262b' }, custom_nerve: { c: '#f1d27a' }
+};
+function xrayMat(cfg) {
+  const [col, base, rim, pw] = cfg;
+  return new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Vector3(...col) }, uBase: { value: base }, uRim: { value: rim }, uPow: { value: pw } },
+    vertexShader: XRAY_VS, fragmentShader: XRAY_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+}
+function matX(cat) { return MATX[cat] || (MATX[cat] = xrayMat(XCFG[cat])); }
+function matC(ck) {
+  if (MATC[ck]) return MATC[ck];
+  const c = CCFG[ck] || { c: '#ffffff' };
+  const o = c.o || 1;
+  return (MATC[ck] = new THREE.MeshLambertMaterial({ color: c.c, transparent: o < 1, opacity: o, depthWrite: o >= 1, side: c.ds ? THREE.DoubleSide : THREE.FrontSide }));
+}
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+function addMesh(geo, part, cat, ck, parent, setup) {
+  const m = new THREE.Mesh(geo, matX(cat));
+  m.userData = { part, mx: matX(cat), mc: matC(ck || cat) };
+  m.renderOrder = cat === 'bone' ? 2 : cat === 'muscle' ? 3 : 0;
+  if (setup) setup(m);
+  parent.add(m); allMeshes.push(m);
+  const layer = PARTS[part].layer; (pickByLayer[layer] = pickByLayer[layer] || []).push(m);
+  PARTS[part].meshes.push(m);
+  return m;
+}
+function addAnchor(part, x, y, z, parent) {
+  const o = new THREE.Object3D(); o.position.set(x, y, z); (parent || layerGroups[PARTS[part].layer]).add(o);
+  PARTS[part].anchors.push(o); return o;
+}
+function anchorPair(part, x, y, z, parent) { addAnchor(part, x, y, z, parent); addAnchor(part, -x, y, z, parent); }
+function tube(points, r, seg = 40, radial = 7) {
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map((p) => V3(...p))), seg, r, radial, false);
+}
+function capsuleBetween(m, a, b) {
+  const A = V3(...a), B = V3(...b); const d = B.clone().sub(A);
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.normalize());
+}
+function ellPoint(c, r, theta, phi) {
+  return [c[0] - Math.cos(phi) * Math.sin(theta) * r[0], c[1] + Math.cos(theta) * r[1], c[2] + Math.sin(phi) * Math.sin(theta) * r[2]];
+}
+
+function initThree() {
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const sc = Math.min(1, 1280 / Math.max(vw, vh));
+  W = Math.round(vw * sc); H = Math.round(vh * sc); computeMap();
+  glCanvas = document.createElement('canvas');
+  renderer = new THREE.WebGLRenderer({ canvas: glCanvas, alpha: true, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(1); renderer.setSize(W, H, false); renderer.setClearColor(0x000000, 0);
+  bloomCanvas = document.createElement('canvas'); bloomCanvas.width = Math.round(W / 4); bloomCanvas.height = Math.round(H / 4);
+  bctx = bloomCanvas.getContext('2d');
+  // MediaPipe's face geometry uses a perspective camera with a 63° vertical field of view.
+  camera = new THREE.PerspectiveCamera(63, W / H, 1, 3000);
+  scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.4));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.6); dl.position.set(0.4, 0.6, 1); scene.add(dl);
+  headRoot = new THREE.Group(); headRoot.matrixAutoUpdate = false; scene.add(headRoot);
+  calibG = new THREE.Group(); headRoot.add(calibG);
+  content = new THREE.Group(); content.position.set(-P0v[0], -P0v[1], -P0v[2]); calibG.add(content);
+  raycaster = new THREE.Raycaster(); tv = new THREE.Vector3(); ndc = new THREE.Vector2();
+  HI_X = xrayMat([[1.0, 0.86, 0.35], 0.35, 1.2, 1.6]);
+  HI_C = new THREE.MeshLambertMaterial({ color: '#ffd84a', emissive: '#a07000', side: THREE.DoubleSide });
+  buildHead();
+  applyMaterials();
+}
+
+function buildHead() {
+  for (const k of ['skull', 'brain', 'muscles', 'eyes', 'vessels', 'ear', 'sinus']) { layerGroups[k] = new THREE.Group(); content.add(layerGroups[k]); }
+  // the neck does not turn fully with the head, so the spine lives in camera space and is posed every frame
+  layerGroups.spine = new THREE.Group(); scene.add(layerGroups.spine);
+  customRoot = new THREE.Group(); content.add(customRoot);
+  const G = layerGroups;
+  jaw = new THREE.Group(); jaw.position.set(...TMJv); G.skull.add(jaw);
+  const jawIn = new THREE.Group(); jawIn.position.set(-TMJv[0], -TMJv[1], -TMJv[2]); jaw.add(jawIn);
+
+  // ---------- cranium, split into bones by region
+  {
+    const g = new THREE.SphereGeometry(1, 56, 36);
+    const pos = g.attributes.position; const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      let x = CRAN_C[0] + v.x * CRAN_R[0], y = CRAN_C[1] + v.y * CRAN_R[1], z = CRAN_C[2] + v.z * CRAN_R[2];
+      const fossa = smooth(-1.5, 0.5, y) * (1 - smooth(3.5, 5.5, y));
+      x *= 1 - 0.08 * fossa * Math.abs(v.x);                 // temporal fossa
+      const cut = 1 - smooth(2.6, 4.3, y);                     // face skeleton replaces the front below the brow
+      if (z > 1.2) z = z + (1.2 - z) * cut;
+      if (y < -2) y = -2 + (y + 2) * 0.25;                     // flat cranial base
+      pos.setXYZ(i, x, y, z);
+    }
+    g.computeVertexNormals();
+    const ng = g.toNonIndexed(); const P = ng.attributes.position, N = ng.attributes.normal;
+    const classify = (x, y, z) => {
+      const ax = Math.abs(x);
+      if (y < 1.0 && ax < 4.4) return z > -4 ? 'sphenoid' : 'occipital';
+      if (z < -7.6 && y < 6.8) return 'occipital';
+      if (y < 4.4 && ax > 4.6 && z > -1.6 && z < 2.2 && y > 0.6) return 'sphenoid';
+      if (y < 4.6 && ax > 4.4) return 'temporal';
+      if (z > -0.8) return 'frontal';
+      return 'parietal';
+    };
+    const buckets = {};
+    for (let t = 0; t < P.count; t += 3) {
+      const cx = (P.getX(t) + P.getX(t + 1) + P.getX(t + 2)) / 3, cy = (P.getY(t) + P.getY(t + 1) + P.getY(t + 2)) / 3, cz = (P.getZ(t) + P.getZ(t + 1) + P.getZ(t + 2)) / 3;
+      const id = classify(cx, cy, cz); const b = buckets[id] || (buckets[id] = { p: [], n: [] });
+      for (let k = 0; k < 3; k++) { b.p.push(P.getX(t + k), P.getY(t + k), P.getZ(t + k)); b.n.push(N.getX(t + k), N.getY(t + k), N.getZ(t + k)); }
+    }
+    for (const id in buckets) {
+      const bg = new THREE.BufferGeometry();
+      bg.setAttribute('position', new THREE.Float32BufferAttribute(buckets[id].p, 3));
+      bg.setAttribute('normal', new THREE.Float32BufferAttribute(buckets[id].n, 3));
+      addMesh(bg, id, 'bone', 'bone', G.skull);
+    }
+    g.dispose(); ng.dispose();
+    addAnchor('frontal', 0, 8.2, 4.4);
+    anchorPair('parietal', 4.6, 9.4, -4.0);
+    anchorPair('temporal', 6.3, 1.4, -3.2);
+    addAnchor('occipital', 0, 2.5, -11.9);
+    anchorPair('sphenoid', 6.0, 2.6, 0.4);
+  }
+  // ---------- facial skeleton
+  for (const s of [1, -1]) {
+    addMesh(new THREE.TorusGeometry(1.75, 0.3, 8, 28), 'orbit', 'bone', 'bone', G.skull, (m) => {
+      m.position.set(s * IRIS_X, 2.55, 3.9); m.scale.set(1.05, 0.9, 1); m.rotation.y = s * 0.3;
+    });
+    addMesh(new THREE.SphereGeometry(1, 16, 12), 'zygomatic', 'bone', 'bone', G.skull, (m) => { m.position.set(s * 4.6, 0.5, 3.3); m.scale.set(1.3, 0.95, 0.8); });
+    addMesh(tube([[s * 5.3, 0.5, 2.4], [s * 6.2, 0.4, 0.6], [s * 6.5, 0.3, -1.4]], 0.38, 16), 'zygomatic', 'bone', 'bone', G.skull);
+  }
+  anchorPair('orbit', 4.7, 3.7, 3.5);
+  anchorPair('zygomatic', 4.9, 0.5, 3.6);
+  addMesh(new THREE.CylinderGeometry(0.35, 0.55, 2.4, 10), 'nasal', 'bone', 'bone', G.skull, (m) => { m.position.set(0, 1.9, 5.95); m.rotation.x = -0.5; m.scale.z = 0.6; });
+  addAnchor('nasal', 0, 2.0, 6.0);
+  addMesh(new THREE.TorusGeometry(0.85, 0.16, 6, 20), 'maxilla', 'bone', 'bone', G.skull, (m) => { m.position.set(0, -0.3, 5.5); m.scale.set(0.85, 1.35, 1); });
+  addMesh(new THREE.CylinderGeometry(2.9, 2.9, 2.8, 20, 1, true, -Math.PI / 2, Math.PI), 'maxilla', 'bone', 'bone', G.skull, (m) => {
+    m.position.set(0, -2.7, 2.3); m.scale.set(1.2, 1, 1);
+  });
+  anchorPair('maxilla', 1.9, -2.4, 5.0);
+  // teeth (16 upper, 16 lower)
+  const XAX = V3(1, 0, 0); const tmp = new THREE.Vector3(); const toothGeo = {};
+  function teethRow(parent, yC, ax, az0, azR, h, jaw) {
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const th = -1.32 + i * (2.64 / (n - 1)); const k = Math.abs(i - (n - 1) / 2);
+      const w = k < 2 ? 0.5 : k < 3 ? 0.56 : k < 5 ? 0.62 : 0.86; const d = k < 2 ? 0.32 : k < 3 ? 0.5 : k < 5 ? 0.62 : 0.85;
+      const key = w + '_' + d + '_' + h; const geo = toothGeo[key] || (toothGeo[key] = new THREE.BoxGeometry(w * 0.92, h, d));
+      addMesh(geo, `tooth${jaw}${Math.floor(k)}`, 'teeth', 'teeth', parent, (m) => {
+        m.position.set(ax * Math.sin(th), yC, az0 + azR * Math.cos(th));
+        m.quaternion.setFromUnitVectors(XAX, tmp.set(ax * Math.cos(th), 0, -azR * Math.sin(th)).normalize());
+      });
+    }
+  }
+  teethRow(G.skull, -4.45, 2.6, 0.3, 4.6, 0.95, 'U');
+  teethRow(jawIn, -5.35, 2.4, 0.5, 4.3, 0.9, 'L');
+  addAnchor('teeth', 0, -4.6, 5.0, jawIn);
+  // mandible
+  const mPts = (s) => [[s * 5.4, -0.4, -1.9], [s * 5.3, -3.5, -1.6], [s * 5.0, -6.4, -1.1], [s * 4.0, -8.0, 1.6], [s * 2.0, -8.9, 3.9]];
+  const mandCurve = [...mPts(1), [0, -9.1, 4.6], ...mPts(-1).reverse()];
+  addMesh(tube(mandCurve, 0.7, 120, 8), 'mandible', 'bone', 'bone', jawIn);
+  for (const s of [1, -1]) {
+    addMesh(tube([[s * 5.0, -4.2, -0.8], [s * 4.95, -2.6, -0.1], [s * 4.9, -1.4, 0.4]], 0.35, 10), 'mandible', 'bone', 'bone', jawIn);
+    addMesh(tube([[s * 4.3, -5.8, 0.4], [s * 2.6, -6.2, 3.3], [s * 0.8, -6.3, 4.4]], 0.4, 16), 'mandible', 'bone', 'bone', jawIn);
+  }
+  addMesh(new THREE.SphereGeometry(0.8, 14, 10), 'mandible', 'bone', 'bone', jawIn, (m) => { m.position.set(0, -8.9, 4.8); m.scale.set(1.6, 1, 0.7); });
+  anchorPair('mandible', 3.6, -7.7, 2.4, jawIn);
+
+  // ---------- brain
+  const brainGeo = (seed) => {
+    const g = new THREE.SphereGeometry(1, 30, 20); const p = g.attributes.position; const v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const n = Math.sin(v.x * 9 + seed) * Math.sin(v.y * 8 + seed * 1.7) * Math.sin(v.z * 9 + seed * 2.3);
+      v.multiplyScalar(1 + 0.06 * n); p.setXYZ(i, v.x, v.y, v.z);
+    }
+    g.computeVertexNormals(); return g;
+  };
+  const lobes = [
+    ['frontalLobe', [2.9, 6.2, 1.2], [2.9, 2.9, 4.0], [2.9, 7.4, 3.6]],
+    ['parietalLobe', [3.0, 7.9, -4.5], [2.9, 3.0, 3.6], [3.0, 10.0, -4.6]],
+    ['temporalLobe', [4.4, 2.2, -1.8], [1.8, 1.9, 3.6], [5.6, 1.7, -1.2]],
+    ['occipitalLobe', [2.4, 4.2, -9.4], [2.3, 2.7, 2.3], [2.4, 4.4, -10.9]],
+    ['cerebellum', [2.3, -0.2, -8.6], [2.4, 1.6, 2.0], [2.7, -0.8, -9.7]]
+  ];
+  let seed = 1;
+  for (const [id, c, r, a] of lobes) {
+    for (const s of [1, -1]) {
+      addMesh(brainGeo(seed++), id, 'brain', id, G.brain, (m) => { m.position.set(s * c[0], c[1], c[2]); m.scale.set(...r); });
+    }
+    anchorPair(id, ...a);
+  }
+  addMesh(tube([[0, 1.2, -4.0], [0, -1.0, -4.8], [0, -3.6, -5.2]], 0.85, 16, 10), 'brainstem', 'brain', 'brainstem', G.brain);
+  addAnchor('brainstem', 0, -1.2, -4.9);
+
+  // ---------- facial muscles
+  const FR = [CRAN_R[0] + 0.35, CRAN_R[1] + 0.35, CRAN_R[2] + 0.35];
+  const TR = [6.75, 8.9, 9.3];
+  for (const s of [1, -1]) {
+    const fPhi = s > 0 ? 1.62 : Math.PI - 2.29;
+    addMesh(new THREE.SphereGeometry(1, 14, 10, fPhi, 0.67, 0.78, 0.635), 'frontalis', 'muscle', 'muscle', G.muscles, (m) => { m.position.set(...CRAN_C); m.scale.set(...FR); });
+    const tPhi = s > 0 ? Math.PI - 0.16 : -0.8;
+    addMesh(new THREE.SphereGeometry(1, 14, 12, tPhi, 0.96, 1.0, 0.85), 'temporalis', 'muscle', 'muscle', G.muscles, (m) => { m.position.set(...CRAN_C); m.scale.set(...TR); });
+    const oc = addMesh(new THREE.TorusGeometry(2.05, 0.42, 8, 26), 'orbOculi', 'muscle', 'muscle', G.muscles, (m) => {
+      m.position.set(s * IRIS_X, 2.5, 4.55); m.scale.set(1, 0.85, 0.35);
+    });
+    oculi.push({ mesh: oc, side: s });
+    addMesh(tube([[s * 4.7, 0.2, 4.2], [s * 3.8, -2.2, 5.0], [s * 2.5, -4.6, 5.7]], 0.36, 16), 'zygMajor', 'muscle', 'muscle', G.muscles);
+    addMesh(new THREE.CapsuleGeometry(0.75, 4.6, 4, 10), 'masseter', 'muscle', 'muscle', G.muscles, (m) => {
+      capsuleBetween(m, [s * 5.6, -0.3, 0.6], [s * 5.25, -6.2, -0.4]); m.scale.set(0.7, 1, 1.9);
+    });
+    addMesh(new THREE.SphereGeometry(1, 14, 10), 'buccinator', 'muscle', 'muscle', G.muscles, (m) => {
+      m.position.set(s * 3.6, -4.6, 3.8); m.scale.set(0.35, 1.2, 1.5); m.rotation.y = s * 0.5;
+    });
+  }
+  oris.push(addMesh(new THREE.TorusGeometry(2.1, 0.5, 8, 28), 'orbOris', 'muscle', 'muscle', G.muscles, (m) => {
+    m.position.set(0, -4.9, 5.9); m.scale.set(1.2, 0.75, 0.4); m.rotation.x = -0.15;
+  }));
+  { const a = ellPoint(CRAN_C, FR, 1.05, 1.95); anchorPair('frontalis', Math.abs(a[0]), a[1], a[2]); }
+  { const a = ellPoint(CRAN_C, TR, 1.35, Math.PI + 0.3); anchorPair('temporalis', Math.abs(a[0]), a[1], a[2]); }
+  anchorPair('orbOculi', 5.0, 2.3, 4.3);
+  anchorPair('orbOris', 2.5, -4.9, 5.8);
+  anchorPair('zygMajor', 3.8, -2.2, 5.0);
+  anchorPair('masseter', 6.0, -3.3, 0.2);
+  anchorPair('buccinator', 3.8, -4.6, 4.3);
+
+  // ---------- eyes
+  for (const s of [1, -1]) {
+    const ex = s * IRIS_X;
+    addMesh(new THREE.SphereGeometry(EYE_R, 24, 16), 'eyeball', 'eye', 'eye', G.eyes, (m) => m.position.set(ex, EYE_Y, EYE_Z));
+    addMesh(new THREE.CircleGeometry(0.55, 24), 'eyeball', 'eye', 'iris', G.eyes, (m) => m.position.set(ex, EYE_Y, EYE_Z + EYE_R + 0.01));
+    addMesh(new THREE.CircleGeometry(0.22, 18), 'eyeball', 'eye', 'pupil', G.eyes, (m) => m.position.set(ex, EYE_Y, EYE_Z + EYE_R + 0.03));
+    addMesh(tube([[s * 3.0, 2.5, 1.4], [s * 1.6, 2.45, -0.8], [s * 0.6, 2.4, -2.2]], 0.22, 16), 'opticNerve', 'nerve', 'nerve', G.eyes);
+    const A = [s * 2.3, 2.45, -0.6]; const zi = EYE_Z + 0.6, ri = 1.04;
+    const em = (id, pts, r) => addMesh(tube(pts, r, 16), id, 'muscle', 'eyeMuscle', G.eyes);
+    em('sRectus', [A, [s * 2.9, 3.55, 1.2], [ex, EYE_Y + ri, zi]], 0.17);
+    em('iRectus', [A, [s * 2.9, 1.45, 1.2], [ex, EYE_Y - ri, zi]], 0.17);
+    em('mRectus', [A, [s * 1.85, 2.5, 1.2], [s * (IRIS_X - ri), EYE_Y, zi]], 0.17);
+    em('lRectus', [A, [s * 4.2, 2.5, 1.0], [s * (IRIS_X + ri), EYE_Y, zi]], 0.17);
+    em('sOblique', [[s * 2.0, 2.9, -0.5], [s * 1.95, 3.5, 1.8], [s * 2.0, 3.75, 3.6]], 0.13);
+    em('sOblique', [[s * 2.0, 3.75, 3.6], [s * 2.9, 3.85, 2.9], [s * 3.75, 3.35, 2.0]], 0.09);
+    em('iOblique', [[s * 2.1, 1.35, 3.7], [s * 3.2, 1.1, 2.6], [s * 4.0, 1.9, 1.9]], 0.14);
+  }
+  anchorPair('eyeball', 4.25, 2.3, 3.0);
+  anchorPair('opticNerve', 1.6, 2.45, -0.8);
+  anchorPair('eyeMuscles', 2.9, 3.6, 1.2);
+
+  // ---------- arteries
+  for (const s of [1, -1]) {
+    addMesh(tube([[s * 3.4, -9.6, 0.6], [s * 4.0, -8.4, 1.8], [s * 3.6, -6.6, 3.8], [s * 2.7, -4.9, 5.6], [s * 1.9, -2.6, 5.9], [s * 1.4, -0.4, 6.0], [s * 1.5, 1.6, 5.4]], 0.16, 60), 'facialA', 'vessel', 'artery', G.vessels);
+    addMesh(tube([[s * 6.4, -1.2, -1.6], [s * 6.9, 1.5, -1.3], [s * 7.0, 3.8, -1.0]], 0.17, 20), 'stA', 'vessel', 'artery', G.vessels);
+    addMesh(tube([[s * 7.0, 3.8, -1.0], [s * 6.4, 6.2, 1.5], [s * 5.0, 8.2, 3.2]], 0.14, 24), 'stA', 'vessel', 'artery', G.vessels);
+    addMesh(tube([[s * 7.0, 3.8, -1.0], [s * 6.6, 7.0, -2.6], [s * 5.4, 9.6, -4.4]], 0.14, 24), 'stA', 'vessel', 'artery', G.vessels);
+  }
+  anchorPair('facialA', 3.6, -6.6, 3.8);
+  anchorPair('stA', 7.0, 3.8, -1.0);
+
+  // ---------- ear: outer (auricle, canal), middle (eardrum, ossicles), inner (cochlea, semicircular canals)
+  for (const s of [1, -1]) {
+    addMesh(new THREE.TorusGeometry(1.6, 0.3, 8, 28), 'auricle', 'cartilage', 'cartilage', G.ear, (m) => {
+      m.position.set(s * 7.5, 1.1, -3.3); m.rotation.set(0, s * Math.PI / 2, 0); m.scale.set(0.95, 1.85, 1);
+    });
+    addMesh(new THREE.SphereGeometry(0.75, 14, 10), 'auricle', 'cartilage', 'cartilage', G.ear, (m) => { m.position.set(s * 7.3, 0.6, -3.0); m.scale.set(0.35, 1, 0.85); });
+    addMesh(new THREE.SphereGeometry(0.55, 12, 8), 'auricle', 'cartilage', 'cartilage', G.ear, (m) => { m.position.set(s * 7.55, -1.75, -3.2); m.scale.set(0.45, 1, 0.9); });
+    addMesh(tube([[s * 7.2, 0.45, -2.75], [s * 6.2, 0.55, -2.55], [s * 5.0, 0.35, -2.45]], 0.32, 16), 'earCanal', 'cartilage', 'cartilage', G.ear);
+    addMesh(new THREE.CircleGeometry(0.45, 20), 'eardrum', 'cartilage', 'eardrum', G.ear, (m) => { m.position.set(s * 4.9, 0.35, -2.45); m.rotation.set(0, s * Math.PI / 2, 0.5); });
+    // malleus, incus, stapes
+    const caps = [[[s * 4.75, 0.95, -2.5], [s * 4.75, 0.2, -2.45], 0.08], [[s * 4.55, 0.95, -2.75], [s * 4.45, 0.3, -2.85], 0.08], [[s * 4.45, 0.35, -2.8], [s * 4.1, 0.3, -2.7], 0.06]];
+    for (const [a, b, r] of caps) addMesh(new THREE.CapsuleGeometry(r, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), 3, 6), 'ossicles', 'inner', 'ossicle', G.ear, (m) => capsuleBetween(m, a, b));
+    // cochlea: about 2.5 turns
+    const sp = []; for (let i = 0; i <= 60; i++) { const t = i / 60, an = t * 2.5 * Math.PI * 2, r = 0.5 * (1 - 0.72 * t); sp.push([s * (3.75 + 0.35 * t), 0.15 + r * Math.sin(an), -2.15 + r * Math.cos(an)]); }
+    addMesh(tube(sp, 0.1, 90, 6), 'cochlea', 'inner', 'inner', G.ear);
+    // three semicircular canals at right angles to each other
+    const rots = [[0, 0, 0], [Math.PI / 2, 0, 0], [0, Math.PI / 2, 0]], offs = [[0, 0.1, -0.15], [0.05, 0.35, 0], [0.15, 0.1, -0.35]];
+    rots.forEach((ro, i) => addMesh(new THREE.TorusGeometry(0.32, 0.05, 5, 20), 'semicircular', 'inner', 'inner', G.ear, (m) => {
+      m.position.set(s * (4.0 + offs[i][0]), 0.6 + offs[i][1], -2.95 + offs[i][2]); m.rotation.set(...ro);
+    }));
+  }
+  anchorPair('auricle', 7.6, 2.9, -3.7, G.ear);
+  anchorPair('earCanal', 6.3, 0.55, -2.55, G.ear);
+  anchorPair('eardrum', 4.9, 0.35, -2.45, G.ear);
+  anchorPair('ossicles', 4.55, 0.7, -2.7, G.ear);
+  anchorPair('cochlea', 3.9, 0.15, -2.15, G.ear);
+  anchorPair('semicircular', 4.05, 0.95, -3.05, G.ear);
+
+  // ---------- paranasal sinuses (air spaces inside the frontal, maxillary, ethmoid and sphenoid bones)
+  for (const s of [1, -1]) {
+    addMesh(new THREE.SphereGeometry(1, 16, 12), 'frontalSinus', 'sinus', 'sinus', G.sinus, (m) => { m.position.set(s * 1.0, 4.8, 4.6); m.scale.set(0.95, 0.85, 0.5); });
+    addMesh(new THREE.SphereGeometry(1, 18, 14), 'maxSinus', 'sinus', 'sinus', G.sinus, (m) => { m.position.set(s * 2.6, -0.7, 3.4); m.scale.set(1.1, 1.35, 1.45); });
+    for (let k = 0; k < 3; k++) addMesh(new THREE.SphereGeometry(0.42, 10, 8), 'ethSinus', 'sinus', 'sinus', G.sinus, (m) => { m.position.set(s * 1.0, 2.5 + (k === 1 ? 0.35 : 0), 4.0 - k * 0.9); });
+    addMesh(new THREE.SphereGeometry(1, 14, 10), 'sphSinus', 'sinus', 'sinus', G.sinus, (m) => { m.position.set(s * 0.45, 1.8, 0.7); m.scale.set(0.5, 0.75, 0.8); });
+  }
+  anchorPair('frontalSinus', 1.0, 5.2, 4.9, G.sinus);
+  anchorPair('maxSinus', 3.0, -0.9, 4.2, G.sinus);
+  anchorPair('ethSinus', 1.0, 2.6, 3.2, G.sinus);
+  addAnchor('sphSinus', 0, 1.8, 0.7, G.sinus);
+
+  // ---------- cervical spine C1–C7 (local frame: vertebral canal at the origin, +z toward the face)
+  c1Ref = new THREE.Object3D(); c1Ref.position.set(0, -3.0, -5.0); content.add(c1Ref);
+  for (let i = 0; i < 7; i++) {
+    const vg = new THREE.Group(); G.spine.add(vg); vertebrae.push(vg);
+    const part = i === 0 ? 'atlas' : i === 1 ? 'axis' : i === 6 ? 'c7' : 'cervical';
+    const add = (geo, setup) => addMesh(geo, part, 'bone', 'vertebra', vg, setup);
+    const cap = (a, b, r) => add(new THREE.CapsuleGeometry(r, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), 3, 6), (m) => capsuleBetween(m, a, b));
+    if (i === 0) {
+      // atlas: a ring with lateral masses and wide transverse processes, no body
+      add(new THREE.TorusGeometry(1.3, 0.2, 6, 24), (m) => { m.rotation.x = Math.PI / 2; m.scale.set(1, 1.05, 1); });
+      for (const s of [1, -1]) {
+        add(new THREE.SphereGeometry(0.5, 10, 8), (m) => { m.position.set(s * 1.3, 0, 0.35); m.scale.set(0.8, 0.7, 1.1); });
+        cap([s * 1.6, 0, 0.3], [s * 3.4, -0.1, 0.1], 0.2);
+      }
+      add(new THREE.SphereGeometry(0.22, 8, 6), (m) => m.position.set(0, 0, -1.45));
+      addAnchor('atlas', 3.4, 0, 0.1, vg);
+    } else {
+      const t = (i - 1) / 5, br = 0.72 + 0.14 * t;
+      add(new THREE.CylinderGeometry(br, br, 1.15, 14), (m) => { m.position.set(0, 0, 0.6 + br); m.scale.set(1.15, 1, 1); });
+      const arch = new THREE.Group(); arch.rotation.x = -Math.PI / 2; vg.add(arch);
+      addMesh(new THREE.TorusGeometry(0.85, 0.17, 5, 18, Math.PI * 1.3), part, 'bone', 'vertebra', arch, (m) => { m.rotation.z = -0.15 * Math.PI; });
+      const spinEnd = i === 6 ? [0, -0.8, -3.1] : i === 1 ? [0, -0.35, -2.2] : [0, -0.4, -1.9 - 0.1 * i];
+      cap([0, 0, -0.9], spinEnd, i === 1 ? 0.24 : 0.17);
+      for (const s of [1, -1]) {
+        cap([s * 0.85, 0, 0.35], [s * 2.1, -0.1, 0.45], 0.16);
+        if (i < 6) add(new THREE.TorusGeometry(0.2, 0.06, 4, 12), (m) => { m.position.set(s * 1.55, 0, 0.42); m.rotation.x = Math.PI / 2; });   // foramen transversarium
+      }
+      if (i === 1) add(new THREE.CylinderGeometry(0.33, 0.4, 1.4, 10), (m) => m.position.set(0, 1.25, 0.95));   // dens of the axis
+      if (part !== 'cervical' || i === 4) addAnchor(part, 0, 0, -0.4 + spinEnd[2], vg);
+    }
+  }
+
+  // per-side material clones for blink feedback on orbicularis oculi
+  for (const o of oculi) {
+    o.mx = o.mesh.userData.mx.clone(); o.mx.uniforms = THREE.UniformsUtils.clone(o.mesh.userData.mx.uniforms);
+    o.mesh.userData.mx = o.mx;
+  }
+}
+
+let selPart = null, selBone = null;
+function applyMaterials() {
+  if (!allMeshes.length) return;
+  const x = S.look === 'xray';
+  for (const m of allMeshes) {
+    const hi = selPart && m.userData.part === selPart;
+    m.material = hi ? (x ? HI_X : HI_C) : (x ? m.userData.mx : m.userData.mc);
+  }
+}
+
+// =====================================================================
+//  Tracking state, smoothing, calibration
+// =====================================================================
+class LowPass { constructor() { this.y = null; } f(x, a) { this.y = this.y === null ? x : a * x + (1 - a) * this.y; return this.y; } }
+class OneEuro {
+  constructor(minC, beta, dC) { this.minC = minC; this.beta = beta; this.dC = dC; this.x = new LowPass(); this.dx = new LowPass(); this.t = null; }
+  alpha(c, dt) { const tau = 1 / (2 * Math.PI * c); return 1 / (1 + tau / dt); }
+  f(x, t) {
+    if (this.t === null) { this.t = t; this.x.y = null; this.dx.y = null; this.dx.f(0, 1); return this.x.f(x, 1); }
+    const dt = Math.max(1e-3, (t - this.t) / 1000); this.t = t;
+    const edx = this.dx.f((x - this.x.y) / dt, this.alpha(this.dC, dt));
+    return this.x.f(x, this.alpha(this.minC + this.beta * Math.abs(edx), dt));
+  }
+  reset() { this.t = null; }
+}
+
+const face = { seen: -1e9, alpha: 0, lms: null, slm: null, jaw: 0, blinkL: 0, blinkR: 0, has: false, M: null, pos: null, quat: null, scl: null };
+const hands = new Map();
+const cal = { n: 0, ox: 0, oy: 0, sx: 1, sy: 1 };
+function resetCalib() { cal.n = 0; cal.ox = 0; cal.oy = 0; cal.sx = 1; cal.sy = 1; }
+let tmpM = null;
+
+function onFace(res, now) {
+  if (!res || !res.faceLandmarks || !res.faceLandmarks.length) return;
+  const lost = now - face.seen > 300;
+  face.seen = now; face.lms = res.faceLandmarks[0];
+  if (!face.slm || lost || face.slm.length !== face.lms.length) face.slm = face.lms.map((p) => ({ x: p.x, y: p.y }));
+  else for (let i = 0; i < face.lms.length; i++) { face.slm[i].x += (face.lms[i].x - face.slm[i].x) * 0.6; face.slm[i].y += (face.lms[i].y - face.slm[i].y) * 0.6; }
+  const bs = res.faceBlendshapes && res.faceBlendshapes[0] && res.faceBlendshapes[0].categories;
+  if (bs) for (const c of bs) {
+    if (c.categoryName === 'jawOpen') face.jaw += (c.score - face.jaw) * 0.6;
+    else if (c.categoryName === 'eyeBlinkLeft') face.blinkL = c.score;
+    else if (c.categoryName === 'eyeBlinkRight') face.blinkR = c.score;
+  }
+  const mat = res.facialTransformationMatrixes && res.facialTransformationMatrixes[0];
+  if (mat && mat.data && THREE) {
+    if (!tmpM) { tmpM = new THREE.Matrix4(); face.M = new THREE.Matrix4(); face.pos = new THREE.Vector3(); face.quat = new THREE.Quaternion(); face.scl = new THREE.Vector3(); }
+    const d = mat.data; tmpM.fromArray(d);
+    if (Math.abs(d[14]) < Math.abs(d[11])) tmpM.transpose();       // guard against row-major data
+    const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); tmpM.decompose(p, q, s);
+    if (!face.has || lost) { face.pos.copy(p); face.quat.copy(q); face.scl.copy(s); face.has = true; }
+    else {
+      const a = clamp(0.35 + p.distanceTo(face.pos) * 0.12, 0.35, 0.85);
+      face.pos.lerp(p, a); face.quat.slerp(q, a); face.scl.lerp(s, a);
+    }
+    face.M.compose(face.pos, face.quat, face.scl);
+  }
+}
+
+let handSeq = 0;
+function newHand() {
+  const key = 'h' + (++handSeq);
+  return { key, side: '?', vote: 0, f: Array.from({ length: 42 }, () => new OneEuro(1.6, 6, 1)), pts: null, raw: null, sp: null, seen: -1e9, alpha: 0, bones: null, L: 1 };
+}
+const palmC = (l) => ({ x: (l[0].x + l[5].x + l[9].x + l[13].x + l[17].x) / 5, y: (l[0].y + l[5].y + l[9].y + l[13].y + l[17].y) / 5 });
+function onHands(res, now) {
+  if (!res) return;
+  const L = res.landmarks || []; const hd = res.handedness || res.handednesses || [];
+  // Hands are identified by position, not by MediaPipe's handedness label: the label can flip between
+  // frames for the same hand, which would otherwise create a second, duplicate hand.
+  const dets = [];
+  L.forEach((lms, i) => {
+    const c = palmC(lms); const size = Math.hypot(lms[0].x - lms[9].x, lms[0].y - lms[9].y) || 0.05;
+    if (dets.some((d) => Math.hypot(d.c.x - c.x, d.c.y - c.y) < size * 0.6)) return;   // duplicate detection of one hand
+    const cat = hd[i] && hd[i][0];
+    dets.push({ lms, c, size, label: cat ? cat.categoryName : '', score: cat ? cat.score : 0 });
+  });
+  const free = [...hands.values()].filter((h) => h.raw && now - h.seen < 500);
+  for (const d of dets) {
+    let best = null, bd = 1e9;
+    for (const h of free) { const pc = palmC(h.raw); const dd = Math.hypot(pc.x - d.c.x, pc.y - d.c.y); if (dd < bd) { bd = dd; best = h; } }
+    let h;
+    if (best && bd < Math.max(0.12, d.size * 1.5)) { h = best; free.splice(free.indexOf(best), 1); }
+    else { h = newHand(); hands.set(h.key, h); }
+    if (now - h.seen > 300) { h.f.forEach((o) => o.reset()); h.vote = 0; }
+    // MediaPipe labels handedness as if the image were mirrored; we feed the raw (unmirrored) camera,
+    // so its "Left" is the person's own right hand. A running vote keeps the name stable.
+    if (d.label === 'Left' || d.label === 'Right') h.vote = clamp(h.vote + (d.label === 'Left' ? 1 : -1) * Math.max(0.3, d.score), -8, 8);
+    h.side = h.vote > 0.5 ? 'R' : h.vote < -0.5 ? 'L' : h.side;
+    h.raw = d.lms;
+    h.pts = d.lms.map((p, j) => ({ x: h.f[2 * j].f(p.x, now), y: h.f[2 * j + 1].f(p.y, now) }));
+    h.seen = now;
+  }
+}
+
+function projM(M, p) { tv.set(p[0], p[1], p[2]).applyMatrix4(M).project(camera); return { x: (tv.x + 1) / 2 * W, y: (1 - tv.y) / 2 * H }; }
+function calibrateStep() {
+  if (window.__xrayNoCal) return;
+  const lm = face.lms; if (!lm || lm.length < 478 || !face.M || face.jaw > 0.12) return;
+  const e = face.M.elements; const fz = e[10] / Math.hypot(e[8], e[9], e[10]); if (fz < 0.93) return;   // only when facing the camera
+  const M = face.M;
+  const pA = projM(M, [IRIS_X, EYE_Y, P0v[2]]), pB = projM(M, [-IRIS_X, EYE_Y, P0v[2]]);
+  const i1 = { x: lm[468].x * W, y: lm[468].y * H }, i2 = { x: lm[473].x * W, y: lm[473].y * H };
+  let aA = i1, aB = i2; if (dist(i2, pA) + dist(i1, pB) < dist(i1, pA) + dist(i2, pB)) { aA = i2; aB = i1; }
+  const p0 = projM(M, P0v), px = projM(M, [P0v[0] + 1, P0v[1], P0v[2]]), py = projM(M, [P0v[0], P0v[1] + 1, P0v[2]]);
+  const ux = { x: px.x - p0.x, y: px.y - p0.y }, uy = { x: py.x - p0.x, y: py.y - p0.y };
+  const detm = ux.x * uy.y - ux.y * uy.x; if (Math.abs(detm) < 1e-6) return;
+  const solve = (d) => [(d.x * uy.y - d.y * uy.x) / detm, (ux.x * d.y - ux.y * d.x) / detm];
+  const pMid = midP(pA, pB), aMid = midP(aA, aB);
+  const off = solve({ x: aMid.x - pMid.x, y: aMid.y - pMid.y });
+  const sx = dist(aA, aB) / Math.max(1e-3, dist(pA, pB));
+  const chin = { x: lm[152].x * W, y: lm[152].y * H };
+  const ca = solve({ x: chin.x - aMid.x, y: chin.y - aMid.y });
+  const pc = projM(M, CHINv); const cp = solve({ x: pc.x - pMid.x, y: pc.y - pMid.y });
+  if (Math.abs(cp[1]) < 1e-3) return;
+  const sy = ca[1] / cp[1];
+  const r = cal.n < 40 ? 0.15 : 0.02;
+  cal.ox += (clamp(off[0], -4, 4) - cal.ox) * r; cal.oy += (clamp(off[1], -4, 4) - cal.oy) * r;
+  cal.sx += (clamp(sx, 0.78, 1.3) - cal.sx) * r; cal.sy += (clamp(sy, 0.78, 1.3) - cal.sy) * r;
+  cal.n++;
+}
+
+function updateHead() {
+  headRoot.matrix.copy(face.M); headRoot.matrixWorldNeedsUpdate = true;
+  calibG.position.set(P0v[0] + cal.ox, P0v[1] + cal.oy + S.up, P0v[2] + S.fwd);
+  const sz = S.size; calibG.scale.set(cal.sx * sz, cal.sy * sz, (cal.sx + cal.sy) / 2 * sz);
+  const j = clamp(face.jaw, 0, 1); jaw.rotation.x = j * 0.42;
+  for (const o of oris) { o.position.y = -4.9 - j * 1.1; o.scale.y = 0.75 * (1 + j * 0.8); }
+  for (const o of oculi) { const b = o.side > 0 ? face.blinkL : face.blinkR; o.mx.uniforms.uBase.value = 0.03 + b * 0.25; }
+  const hideSimple = S.hideSimple && custom.count > 0 && S.custom;
+  for (const k in layerGroups) layerGroups[k].visible = !!S[k] && !hideSimple;
+  customRoot.visible = !!S.custom && custom.count > 0;
+  if (customRoot.visible) updateCustom();
+  scene.updateMatrixWorld();
+  if (layerGroups.spine.visible) updateSpine();
+}
+
+// The neck bends less than the head turns: C1 follows the head fully, C7 only a quarter.
+const SPINE_STEP = [0.25, 0.2, 0.05, -0.1, -0.25, -0.35];   // small forward/back shifts = the cervical curve
+const _sq = [], _sv = [];
+function updateSpine() {
+  if (!_sq.length) for (let i = 0; i < 8; i++) { _sq.push(new THREE.Quaternion()); _sv.push(new THREE.Vector3()); }
+  const ws = face.scl.x * (cal.sx + cal.sy) / 2 * S.size;   // centimetres -> camera units
+  const id = _sq[7].identity();
+  const p = c1Ref.getWorldPosition(_sv[7]);
+  for (let i = 0; i < 7; i++) {
+    const q = _sq[i].copy(id).slerp(face.quat, 1 - i * 0.125);
+    const vg = vertebrae[i];
+    vg.position.copy(p); vg.quaternion.copy(q); vg.scale.setScalar(ws);
+    if (i < 6) p.add(_sv[i].set(0, -1.75 * ws, SPINE_STEP[i] * ws).applyQuaternion(q));
+  }
+  layerGroups.spine.updateMatrixWorld(true);
+}
+
+// =====================================================================
+//  Real 3D models loaded from the user's device (e.g. BodyParts3D OBJ files)
+// =====================================================================
+const CTYPE_AR = { bone: 'عظم', brain: 'دماغ', muscle: 'عضلة', vessel: 'وعاء دموي', nerve: 'عصب' };
+// BodyParts3D OBJ files carry their English name in the header ("# English name : Frontal bone").
+// Arabic names for the parts of the skull, eyes, neck and brain sets: [Arabic, gender (m/f) for left/right, colour category, fact part id]
+const BP3D_AR = {
+  'frontal bone': ['العظم الجبهي', 'm', 'bone', 'frontal'], 'parietal bone': ['العظم الجداري', 'm', 'bone', 'parietal'],
+  'temporal bone': ['العظم الصدغي', 'm', 'bone', 'temporal'], 'occipital bone': ['العظم القذالي', 'm', 'bone', 'occipital'],
+  'occipital part of head': ['العظم القذالي', 'm', 'bone', 'occipital'], 'sphenoid bone': ['العظم الوتدي', 'm', 'bone', 'sphenoid'],
+  'ethmoid': ['العظم الغربالي', 'm', 'bone'], 'zygomatic bone': ['العظم الوجني', 'm', 'bone', 'zygomatic'],
+  'maxilla': ['عظم الفك العلوي', 'm', 'bone', 'maxilla'], 'mandible': ['الفك السفلي', 'm', 'bone', 'mandible'],
+  'nasal bone': ['عظم الأنف', 'm', 'bone', 'nasal'], 'lacrimal bone': ['العظم الدمعي', 'm', 'bone'], 'palatine bone': ['العظم الحنكي', 'm', 'bone'],
+  'inferior nasal concha': ['القُرين الأنفي السفلي', 'm', 'bone'], 'vomer': ['عظم الميكعة', 'm', 'bone'], 'hyoid bone': ['العظم اللامي', 'm', 'bone'],
+  'lacrimal gland': ['الغدة الدمعية', 'f', 'cartilage'], 'cornea': ['القرنية', 'f', 'eye'], 'iris': ['القزحية', 'f', 'eye'], 'lens': ['عدسة العين', 'f', 'eye'],
+  'sclera': ['صُلبة العين', 'f', 'eye', 'eyeball'], 'choroid': ['المشيمية', 'f', 'eye'], 'vitreous body': ['الجسم الزجاجي', 'm', 'eye'],
+  'anterior chamber of eyeball': ['الحجرة الأمامية للعين', 'f', 'eye'], 'suspensory ligament of lens': ['الرباط المعلِّق للعدسة', 'm', 'eye'],
+  'atlas': ['الفقرة العنقية الأولى (الأطلس)', 'f', 'bone', 'atlas'], 'axis': ['الفقرة العنقية الثانية (المحور)', 'f', 'bone', 'axis'],
+  'third cervical vertebra': ['الفقرة العنقية الثالثة', 'f', 'bone', 'cervical'], 'fourth cervical vertebra': ['الفقرة العنقية الرابعة', 'f', 'bone', 'cervical'],
+  'fifth cervical vertebra': ['الفقرة العنقية الخامسة', 'f', 'bone', 'cervical'], 'sixth cervical vertebra': ['الفقرة العنقية السادسة', 'f', 'bone', 'cervical'],
+  'seventh cervical vertebra': ['الفقرة العنقية السابعة', 'f', 'bone', 'c7'],
+  'cerebellum': ['المخيخ', 'm', 'brain', 'cerebellum'], 'pons': ['الجسر', 'm', 'brain', 'brainstem'], 'medulla oblongata': ['النخاع المستطيل', 'm', 'brain', 'brainstem'],
+  'midbrain': ['الدماغ المتوسط', 'm', 'brain', 'brainstem'], 'occipital lobe': ['الفص القذالي', 'm', 'brain', 'occipitalLobe'],
+  'hippocampus': ['الحُصين', 'm', 'brain'], 'insula': ['الفص الجزيري', 'm', 'brain'], 'cingulate gyrus': ['التلفيف الحزامي', 'm', 'brain'],
+  'precentral gyrus': ['التلفيف أمام المركزي', 'm', 'brain'], 'postcentral gyrus': ['التلفيف خلف المركزي', 'm', 'brain'],
+  'superior frontal gyrus': ['التلفيف الجبهي العلوي', 'm', 'brain', 'frontalLobe'], 'middle frontal gyrus': ['التلفيف الجبهي الأوسط', 'm', 'brain', 'frontalLobe'],
+  'inferior frontal gyrus': ['التلفيف الجبهي السفلي', 'm', 'brain', 'frontalLobe'], 'middle temporal gyrus': ['التلفيف الصدغي الأوسط', 'm', 'brain', 'temporalLobe'],
+  'inferior temporal gyrus': ['التلفيف الصدغي السفلي', 'm', 'brain', 'temporalLobe'], 'fusiform gyrus': ['التلفيف المغزلي', 'm', 'brain'],
+  'angular gyrus': ['التلفيف الزاوي', 'm', 'brain'], 'supramarginal gyrus': ['التلفيف فوق الحافّي', 'm', 'brain'],
+  'superior parietal lobule': ['الفُصيص الجداري العلوي', 'm', 'brain', 'parietalLobe'], 'parahippocampal gyrus': ['التلفيف المجاور للحُصين', 'm', 'brain'],
+  'lateral ventricle': ['البطين الجانبي', 'm', 'brain'], 'third ventricle': ['البطين الثالث', 'm', 'brain'], 'fourth ventricle': ['البطين الرابع', 'm', 'brain'],
+  'cerebral aqueduct': ['المسال الدماغي', 'm', 'brain'], 'hypothalamus': ['الوِطاء (تحت المهاد)', 'm', 'brain'], 'pineal body': ['الجسم الصنوبري', 'm', 'brain'],
+  'superior colliculus': ['الأُكيمة العلوية', 'f', 'brain'], 'inferior colliculus': ['الأُكيمة السفلية', 'f', 'brain'], 'internal capsule': ['المحفظة الداخلية', 'f', 'brain']
+};
+function bp3dName(en) {
+  let n = (en || '').toLowerCase().trim(), side = '';
+  const m = n.match(/^(left|right) (.+)$/); if (m) { side = m[1]; n = m[2]; }
+  n = n.replace(/ of (left|right) /, (x, s) => { side = s; return ' of '; });
+  let disk = false; const d = n.match(/^intervertebral disk of (.+)$/); if (d) { disk = true; n = d[1]; }
+  const e = BP3D_AR[n]; if (!e) return null;
+  const sideAr = side ? (e[1] === 'f' ? (side === 'left' ? ' اليسرى' : ' اليمنى') : (side === 'left' ? ' الأيسر' : ' الأيمن')) : '';
+  if (disk) return { ar: 'القرص بين الفقرات أسفل ' + e[0], cat: 'cartilage', fact: 'قرص غضروفي ليفي بين جسمَي فقرتين، يمتص الصدمات ويسمح بحركة العنق.' };
+  return { ar: e[0] + sideAr, cat: e[2], fact: e[3] && PARTS[e[3]] ? PARTS[e[3]].fact : null };
+}
+// BodyParts3D frame (mm, z up, face toward -y, subject's left at +x): midpoint between the two eyeball centres
+const BP3D_EYE_MID = [-0.6, -151.1, 1518.1];
+const custom = { count: 0, n: 0, bp3d: false, unit: 1, fit: 1, center: null, rot: [0, 0, 0], mirror: 1, outer: null, rotG: null, inner: null, tris: 0, jaw: [] };
+const _jA = { A: null, Ai: null, J: null, T: null };
+const modelStatus = (t) => { $('#modelStatus').textContent = t; };
+function ensureCustomGroups() {
+  if (custom.outer) return;
+  custom.outer = new THREE.Group(); custom.rotG = new THREE.Group(); custom.inner = new THREE.Group();
+  customRoot.add(custom.outer); custom.outer.add(custom.rotG); custom.rotG.add(custom.inner);
+}
+// where a fitted model sits in the head (canonical cm) and how big its largest side becomes
+const FIT_TARGET = { bone: [[0, 1.4, -2.5], 21], brain: [[...CRAN_C], 16.5], muscle: [[0, 0, -1], 21], vessel: [[0, 0, -1], 21], nerve: [[0, 1, -2], 18] };
+function rawBox() {
+  custom.inner.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(custom.inner.matrixWorld).invert();
+  const box = new THREE.Box3(); const b = new THREE.Box3();
+  custom.inner.traverse((o) => { if (o.isMesh) { o.geometry.computeBoundingBox(); b.copy(o.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); box.union(b); } });
+  return box;
+}
+function fitCustom(force) {
+  if (!custom.count) return;
+  // BodyParts3D: real size in mm, placed by the eyes, so several sets (skull, brain, neck) stay in register
+  if (custom.bp3d) { custom.unit = 0.1; custom.fit = 1; custom.center = null; return; }
+  const box = rawBox(); const size = box.getSize(new THREE.Vector3()); const maxD = Math.max(size.x, size.y, size.z) || 1;
+  custom.center = box.getCenter(new THREE.Vector3());
+  // BodyParts3D and most medical meshes are in millimetres; this app works in centimetres
+  custom.unit = maxD > 60 ? 0.1 : 1;
+  const tgt = FIT_TARGET[custom.type || 'bone'][1];
+  const cm = maxD * custom.unit;
+  custom.fit = force || cm < 6 || cm > 45 ? tgt / cm : 1;
+}
+function updateCustom() {
+  const o = custom.outer; if (!o) return;
+  const c = custom.bp3d ? [0, EYE_Y, EYE_Z] : FIT_TARGET[custom.type || 'bone'][0];
+  o.position.set(c[0], c[1] + S.cUp, c[2] + S.cFwd);
+  const k = custom.unit * custom.fit * S.cSize; o.scale.set(k * custom.mirror, k, k);
+  // BodyParts3D is z-up; turn it to this app's y-up frame
+  custom.rotG.rotation.set((custom.bp3d ? -Math.PI / 2 : 0) + custom.rot[0], custom.rot[1], custom.rot[2]);
+  if (custom.bp3d) custom.inner.position.set(-BP3D_EYE_MID[0], -BP3D_EYE_MID[1], -BP3D_EYE_MID[2]);
+  else if (custom.center) custom.inner.position.copy(custom.center).multiplyScalar(-1);
+  // a loaded mandible opens with the mouth: rotate it about the jaw joint (TMJ) in head space
+  if (custom.jaw.length) {
+    if (!_jA.A) { _jA.A = new THREE.Matrix4(); _jA.Ai = new THREE.Matrix4(); _jA.J = new THREE.Matrix4(); _jA.T = new THREE.Matrix4(); }
+    o.updateMatrix(); custom.rotG.updateMatrix(); custom.inner.updateMatrix();
+    const A = _jA.A.copy(o.matrix).multiply(custom.rotG.matrix).multiply(custom.inner.matrix);
+    const J = _jA.J.makeTranslation(TMJv[0], TMJv[1], TMJv[2]).multiply(_jA.T.makeRotationX(clamp(face.jaw, 0, 1) * 0.42)).multiply(_jA.T.makeTranslation(-TMJv[0], -TMJv[1], -TMJv[2]));
+    const M = _jA.Ai.copy(A).invert().multiply(J).multiply(A);
+    for (const m of custom.jaw) { m.matrixAutoUpdate = false; m.matrix.copy(M); m.matrixWorldNeedsUpdate = true; }
+  }
+}
+function registerCustom(obj, fileName, type, enName) {
+  const meshes = []; obj.traverse((m) => { if (m.isMesh) meshes.push(m); });
+  for (const m of meshes) {
+    const g = m.geometry; if (!g.attributes.normal) g.computeVertexNormals();
+    custom.tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+    const id = 'custom' + (++custom.n);
+    const label = enName || (m.name && !/^(mesh|object|default)?\d*$/i.test(m.name) ? m.name : fileName).replace(/\.(obj|stl|glb|gltf)$/i, '');
+    const known = bp3dName(label) || bp3dName(m.name);
+    if (/^mandible$/i.test(label.trim())) custom.jaw.push(m);
+    const cat = known ? known.cat : type;
+    PARTS[id] = { id, layer: 'custom', ar: known ? known.ar : `${CTYPE_AR[type]} من النموذج المحمّل`, en: label, label: false, meshes: [m], anchors: [], pref: 0,
+      fact: (known && known.fact) || (enName ? 'شكل حقيقي من بيانات BodyParts3D، المأخوذة من جسم رجل بالغ.' : 'شكل حقيقي من ملف حمّلته من جهازك؛ الاسم الإنجليزي مأخوذ من الملف.') };
+    m.userData = { part: id, mx: matX(cat), mc: matC(cat === 'eye' || cat === 'cartilage' ? cat : 'custom_' + cat), custom: true };
+    m.renderOrder = 1; m.frustumCulled = true;
+    allMeshes.push(m); (pickByLayer.custom = pickByLayer.custom || []).push(m);
+  }
+  return meshes.length;
+}
+async function loadModelFiles(files) {
+  if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; }
+  ensureCustomGroups();
+  const type = S.cType; let ok = 0, parts = 0; const bad = [];
+  modelStatus(`جارٍ قراءة ${files.length} ملف…`);
+  for (const f of files) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    try {
+      let obj = null, enName = null;
+      if (ext === 'obj') {
+        const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js');
+        const txt = await f.text(); const head = txt.slice(0, 2000);
+        const hn = head.match(/# English name : (.+)/); enName = hn ? hn[1].trim() : null;
+        if (/# File ID : FJ\d+/.test(head)) custom.bp3d = true;
+        obj = new OBJLoader().parse(txt);
+      } else if (ext === 'stl') {
+        const { STLLoader } = await import('three/addons/loaders/STLLoader.js');
+        obj = new THREE.Mesh(new STLLoader().parse(await f.arrayBuffer()));
+      } else if (ext === 'glb' || ext === 'gltf') {
+        const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+        const gl = await new GLTFLoader().parseAsync(ext === 'glb' ? await f.arrayBuffer() : await f.text(), '');
+        obj = gl.scene;
+      } else { bad.push(f.name); continue; }
+      const n = registerCustom(obj, f.name, type, enName);
+      if (!n) { bad.push(f.name); continue; }
+      if (/^FJ\d+/i.test(f.name)) custom.bp3d = true;
+      custom.inner.add(obj); ok++; parts += n;
+    } catch (e) { console.warn('model load failed', f.name, e); bad.push(f.name); }
+  }
+  if (!ok) { modelStatus('تعذّرت قراءة الملفات. الصيغ المدعومة: OBJ وGLB وSTL (وملف GLTF المضمَّن بالكامل).' + (bad.length ? ' — ' + bad.join('، ') : '')); return; }
+  custom.count += ok; custom.type = custom.type || type;
+  // BodyParts3D keeps whole-body coordinates in mm with z up, so a head part sits far above z = 0
+  if (!custom.bp3d && rawBox().getCenter(new THREE.Vector3()).z > 500) custom.bp3d = true;
+  fitCustom(false); S.custom = true; save(); syncUI(); applyMaterials();
+  const triTxt = custom.tris >= 1000 ? Math.round(custom.tris / 1000) + ' ألف' : Math.round(custom.tris);
+  modelStatus(`تمت إضافة ${ok} ملف. المجموع: ${custom.count} ملف، ${triTxt} مثلث${custom.bp3d ? ' · BodyParts3D' : ''}.` +
+    (bad.length ? ` تعذّرت قراءة: ${bad.join('، ')}.` : '') +
+    (custom.tris > 400000 ? ' النموذج كبير وقد يبطئ الأجهزة الضعيفة.' : ' اضبط الموضع بالمنزلقات إن لزم.'));
+}
+function clearCustom() {
+  if (!custom.outer) return;
+  const gone = new Set();
+  custom.inner.traverse((m) => {
+    if (!m.isMesh) return; gone.add(m); m.geometry.dispose();
+    for (const mat of [].concat(m.material || [])) if (mat && !Object.values(MATX).includes(mat) && !Object.values(MATC).includes(mat) && mat !== HI_X && mat !== HI_C) mat.dispose();
+    delete PARTS[m.userData.part];
+  });
+  for (let i = allMeshes.length - 1; i >= 0; i--) if (gone.has(allMeshes[i])) allMeshes.splice(i, 1);
+  pickByLayer.custom = [];
+  custom.inner.clear();
+  Object.assign(custom, { count: 0, bp3d: false, unit: 1, fit: 1, center: null, rot: [0, 0, 0], mirror: 1, tris: 0, type: null, jaw: [] });
+  if (selPart && !PARTS[selPart]) clearSel();
+  modelStatus('تم حذف النماذج المحمّلة.');
+}
+$('#loadModelBtn').addEventListener('click', () => { if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; } $('#modelFile').click(); });
+$('#modelFile').addEventListener('change', (e) => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) loadModelFiles(fs); });
+document.querySelectorAll('button[data-rot]').forEach((b) => b.addEventListener('click', () => { const i = 'xyz'.indexOf(b.dataset.rot); custom.rot[i] = (custom.rot[i] + Math.PI / 2) % (Math.PI * 2); }));
+$('#mirrorModelBtn').addEventListener('click', () => { custom.mirror *= -1; });
+$('#fitModelBtn').addEventListener('click', () => { fitCustom(true); S.cSize = 1; S.cUp = 0; S.cFwd = 0; save(); syncUI(); });
+$('#clearModelBtn').addEventListener('click', () => clearCustom());
+// When the page is served from a website, the BodyParts3D sets that sit next to it can be loaded with one click.
+if (/^https?:$/.test(location.protocol)) {
+  $('#presetBtns').hidden = false;
+  const loadedSets = new Set();
+  document.querySelectorAll('button[data-preset]').forEach((b) => b.addEventListener('click', async () => {
+    const dir = b.dataset.preset;
+    if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; }
+    if (loadedSets.has(dir)) { modelStatus('هذا النموذج محمّل بالفعل.'); return; }
+    const base = `models/bodyparts3d/${dir}/`;
+    try {
+      const ids = (await (await fetch(base + 'parts.txt')).text()).trim().split('\n').map((l) => l.split('\t')[0].trim()).filter((x) => /^FJ\d+$/.test(x));
+      const files = [];
+      for (let i = 0; i < ids.length; i++) {
+        modelStatus(`جارٍ تنزيل النموذج… ${i + 1} من ${ids.length}`);
+        const r = await fetch(base + ids[i] + '.obj'); if (!r.ok) throw new Error(r.status + ' ' + ids[i]);
+        files.push(new File([await r.blob()], ids[i] + '.obj'));
+      }
+      loadedSets.add(dir);
+      await loadModelFiles(files);
+    } catch (e) { modelStatus('تعذّر تنزيل النموذج من الموقع. حاول مرة أخرى.'); console.warn(e); }
+  }));
+  $('#clearModelBtn').addEventListener('click', () => loadedSets.clear());
+}
+// files can also be dropped onto the stage
+stage.addEventListener('dragover', (e) => { e.preventDefault(); });
+stage.addEventListener('drop', (e) => { e.preventDefault(); const fs = [...(e.dataTransfer && e.dataTransfer.files || [])]; if (fs.length) loadModelFiles(fs); });
+
+// =====================================================================
+//  Hands: 27 bones from 21 points
+// =====================================================================
+const HAND_CONN = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]];
+const FING = [
+  { ar: 'الإبهام', en: 'thumb', j: [1, 2, 3, 4] }, { ar: 'السبابة', en: 'index', j: [5, 6, 7, 8] },
+  { ar: 'الوسطى', en: 'middle', j: [9, 10, 11, 12] }, { ar: 'البنصر', en: 'ring', j: [13, 14, 15, 16] },
+  { ar: 'الخنصر', en: 'little', j: [17, 18, 19, 20] }
+];
+const MC_AR = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس']; const MC_EN = ['1st', '2nd', '3rd', '4th', '5th'];
+const HF = {
+  mcThumb: 'مشط الإبهام أقصر عظام المشط وأكثرها حركة.',
+  mc: 'واحد من 5 عظام مشطية تشكّل راحة اليد.',
+  prox: 'السلامية القريبة هي أطول سلاميات الإصبع.',
+  mid: 'توجد السلامية الوسطى في الأصابع الأربعة فقط، لا في الإبهام.',
+  dist: 'السلامية البعيدة تدعم الظفر ولبّة الإصبع.'
+};
+const CARPALS = {
+  scaphoid: ['العظم الزورقي', 'Scaphoid', 'أكثر عظام الرسغ تعرّضاً للكسر.'],
+  lunate: ['العظم الهلالي', 'Lunate', 'على شكل هلال، في منتصف الصف القريب من الرسغ.'],
+  triquetrum: ['العظم المثلثي', 'Triquetrum', 'عظم هرمي الشكل في جهة الخنصر من الرسغ.'],
+  pisiform: ['العظم الحِمّصي', 'Pisiform', 'أصغر عظام الرسغ، ويشبه حبّة الحمّص.'],
+  trapezium: ['العظم المربّعي المنحرف', 'Trapezium', 'يتمفصل مع مشط الإبهام فيمنحه حركته الواسعة.'],
+  trapezoid: ['العظم شبه المنحرف', 'Trapezoid', 'أصغر عظام الصف البعيد من الرسغ.'],
+  capitate: ['العظم الكبير', 'Capitate', 'أكبر عظام الرسغ الثمانية.'],
+  hamate: ['العظم الكُلّابي', 'Hamate', 'له نتوء يشبه الخطّاف في جهة راحة اليد.']
+};
+function seg(id, a, b, r, ar, en, fact, group) { return { kind: 'seg', id, a, b, r, ar, en, fact, group }; }
+function buildHandBones(P) {
+  const L = Math.max(dist(P[0], P[9]), dist(P[5], P[17]) / 0.72, 1);
+  const out = [];
+  const u = { x: (P[9].x - P[0].x) / dist(P[0], P[9]) || 0, y: (P[9].y - P[0].y) / dist(P[0], P[9]) || 1 };
+  const ul = dist(P[5], P[17]) || 1; const uln = { x: (P[17].x - P[5].x) / ul, y: (P[17].y - P[5].y) / ul };
+  const base = (i) => lerpP(P[0], P[i], 0.30);
+  const b5 = base(5), b9 = base(9), b13 = base(13), b17 = base(17);
+  const ang = Math.atan2(u.y, u.x);
+  const ell = (id, c, rx, ry) => { const d = CARPALS[id]; out.push({ kind: 'ell', id, c, rx: rx * L, ry: ry * L, rot: ang, ar: d[0], en: d[1], fact: d[2], group: 'carpal' }); };
+  const trapezium = lerpP(P[0], P[1], 0.72), trapezoid = lerpP(P[0], b5, 0.78), capitate = lerpP(P[0], b9, 0.70), hamate = lerpP(P[0], midP(b13, b17), 0.74);
+  const scaphoid = lerpP(P[0], midP(trapezium, trapezoid), 0.42), lunate = lerpP(P[0], capitate, 0.36);
+  const tq0 = lerpP(P[0], hamate, 0.42); const triquetrum = { x: tq0.x + uln.x * 0.035 * L, y: tq0.y + uln.y * 0.035 * L };
+  const pisiform = { x: triquetrum.x + uln.x * 0.03 * L - u.x * 0.015 * L, y: triquetrum.y + uln.y * 0.03 * L - u.y * 0.015 * L };
+  // proximal row then distal row
+  ell('scaphoid', scaphoid, 0.06, 0.042); ell('lunate', lunate, 0.045, 0.045); ell('triquetrum', triquetrum, 0.042, 0.04); ell('pisiform', pisiform, 0.03, 0.03);
+  ell('trapezium', trapezium, 0.05, 0.045); ell('trapezoid', trapezoid, 0.042, 0.038); ell('capitate', capitate, 0.068, 0.048); ell('hamate', hamate, 0.055, 0.046);
+  // metacarpals
+  out.push(seg('mc1', P[1], P[2], 0.05 * L, 'مشط الإبهام (العظم المشطي الأول)', '1st metacarpal · thumb', HF.mcThumb, 'mc'));
+  [b5, b9, b13, b17].forEach((b, i) => {
+    const f = FING[i + 1];
+    out.push(seg('mc' + (i + 2), b, P[f.j[0]], 0.044 * L, `العظم المشطي ${MC_AR[i + 1]} (${f.ar})`, `${MC_EN[i + 1]} metacarpal · ${f.en}`, HF.mc, 'mc'));
+  });
+  // phalanges: thumb has 2, other fingers 3
+  out.push(seg('p1p', P[2], P[3], 0.04 * L, 'السلامية القريبة — الإبهام', 'Proximal phalanx · thumb', HF.prox, 'ph'));
+  out.push(seg('p1d', P[3], P[4], 0.032 * L, 'السلامية البعيدة — الإبهام', 'Distal phalanx · thumb', HF.dist, 'ph'));
+  for (let i = 1; i < 5; i++) {
+    const f = FING[i], j = f.j, t = i === 4 ? 0.9 : 1;
+    out.push(seg(`p${i + 1}p`, P[j[0]], P[j[1]], 0.040 * L * t, `السلامية القريبة — ${f.ar}`, `Proximal phalanx · ${f.en}`, HF.prox, 'ph'));
+    out.push(seg(`p${i + 1}m`, P[j[1]], P[j[2]], 0.033 * L * t, `السلامية الوسطى — ${f.ar}`, `Middle phalanx · ${f.en}`, HF.mid, 'ph'));
+    out.push(seg(`p${i + 1}d`, P[j[2]], P[j[3]], 0.027 * L * t, `السلامية البعيدة — ${f.ar}`, `Distal phalanx · ${f.en}`, HF.dist, 'ph'));
+  }
+  return { bones: out, L, anchors: { carpal: capitate, mc: lerpP(b9, P[9], 0.5), ph: lerpP(P[9], P[10], 0.5) } };
+}
+{ // self-check: 8 carpals + 5 metacarpals + 14 phalanges = 27
+  const dummy = Array.from({ length: 21 }, (_, i) => ({ x: i * 3, y: i * 7 }));
+  const n = buildHandBones(dummy).bones.length; console.assert(n === 27, 'hand bone count', n);
+}
+
+// ---------- hand muscles and nerves (2D, built from the same points as the bones)
+const HSOFT = {
+  thenar: ['عضلات الرانفة (أصل الإبهام)', 'Thenar muscles', '3 عضلات عند قاعدة الإبهام، منها العضلة المقابِلة التي تتيح لمس رؤوس الأصابع بالإبهام. يغذّيها غالباً العصب المتوسط.'],
+  hypothenar: ['عضلات الرانفة الصغرى (أصل الخنصر)', 'Hypothenar muscles', '3 عضلات عند قاعدة الخنصر تحرّكه، ويغذّيها العصب الزندي.'],
+  adductorPollicis: ['العضلة المقرِّبة للإبهام', 'Adductor pollicis', 'تقرّب الإبهام نحو راحة اليد وتمنح قبضة الإمساك قوتها، ويغذّيها العصب الزندي.'],
+  interossei: ['العضلات بين العظام المشطية', 'Interossei', 'عضلات بين عظام المشط تباعد الأصابع وتقرّبها.'],
+  lumbricals: ['العضلات الدودية (4)', 'Lumbricals', 'تنشأ من أوتار العضلة المثنية العميقة، وتثني مفاصل قاعدة الأصابع وتمدّ مفاصلها الأخرى.'],
+  medianN: ['العصب المتوسط', 'Median nerve', 'يمرّ عبر نفق الرسغ، ويغذّي الإحساس في الإبهام والسبابة والوسطى ونصف البنصر من جهة راحة اليد.'],
+  ulnarN: ['العصب الزندي', 'Ulnar nerve', 'يمرّ في قناة غويون قرب العظم الحِمّصي، ويغذّي إحساس الخنصر ونصف البنصر ومعظم عضلات اليد الصغيرة.'],
+  carpalTunnel: ['نفق الرسغ', 'Carpal tunnel', 'ممرّ بين عظام الرسغ والرباط المستعرض يمرّ فيه العصب المتوسط و9 أوتار. انضغاط العصب فيه يسبّب متلازمة نفق الرسغ.']
+};
+function buildHandSoft(P, hb) {
+  const L = hb.L, out = [];
+  const B = {}; for (const b of hb.bones) B[b.id] = b;
+  const u0 = dist(P[0], P[9]) || 1; const u = { x: (P[9].x - P[0].x) / u0, y: (P[9].y - P[0].y) / u0 };    // wrist -> fingers
+  const ul = dist(P[5], P[17]) || 1; const uln = { x: (P[17].x - P[5].x) / ul, y: (P[17].y - P[5].y) / ul }; // thumb side -> little-finger side
+  const add = (p, d, k) => ({ x: p.x + d.x * k * L, y: p.y + d.y * k * L });
+  const info = (id, group) => ({ id, ar: HSOFT[id][0], en: HSOFT[id][1], fact: HSOFT[id][2], group });
+  const ellAlong = (id, a, b, ry) => { const c = midP(a, b); out.push({ kind: 'ell', c, rx: dist(a, b) / 2, ry: ry * L, rot: Math.atan2(b.y - a.y, b.x - a.x), ...info(id, 'muscle') }); };
+  // muscles
+  ellAlong('thenar', lerpP(B.scaphoid.c, B.trapezium.c, 0.4), lerpP(P[1], P[2], 0.75), 0.1);
+  ellAlong('hypothenar', add(B.pisiform.c, uln, 0.01), lerpP(P[0], P[17], 0.95), 0.07);
+  const m3a = B.mc3.a, m3b = B.mc3.b;
+  out.push({ kind: 'poly', pts: [lerpP(P[2], P[1], 0.1), lerpP(m3a, m3b, 0.2), lerpP(m3a, m3b, 0.85)], ...info('adductorPollicis', 'muscle') });
+  const inter = []; for (const [x, y] of [['mc2', 'mc3'], ['mc3', 'mc4'], ['mc4', 'mc5'], ['mc1', 'mc2']]) {
+    const A = midP(lerpP(B[x].a, B[x].b, 0.2), lerpP(B[y].a, B[y].b, 0.2)), Z = midP(lerpP(B[x].a, B[x].b, 0.9), lerpP(B[y].a, B[y].b, 0.9));
+    inter.push({ c: midP(A, Z), rx: dist(A, Z) / 2, ry: Math.max(2, dist(B[x].b, B[y].b) * 0.22), rot: Math.atan2(Z.y - A.y, Z.x - A.x) });
+  }
+  out.push({ kind: 'multi', parts: inter, ...info('interossei', 'muscle') });
+  const lum = [2, 3, 4, 5].map((i) => { const j = FING[i - 1].j[0], mc = B['mc' + i]; return [add(lerpP(mc.a, mc.b, 0.4), uln, -0.05), add(P[j], uln, -0.055)]; });
+  out.push({ kind: 'paths', paths: lum, w: 0.014 * L, ...info('lumbricals', 'muscle') });
+  // carpal tunnel: the flexor retinaculum bridges scaphoid/trapezium (thumb side) to pisiform/hamate
+  const tR = lerpP(B.scaphoid.c, B.trapezium.c, 0.5), tU = lerpP(B.pisiform.c, B.hamate.c, 0.5);
+  const tMid = add(midP(tR, tU), u, -0.02);
+  out.push({ kind: 'band', a: tR, b: tU, c: tMid, w: 0.07 * L, ...info('carpalTunnel', 'nerve') });
+  // median nerve: forearm -> under the retinaculum -> branches to thumb, index, middle and the thumb side of the ring finger
+  const mFore = add(add(P[0], u, -0.55), uln, -0.06), mIn = add(midP(tR, tU), uln, -0.06), mSplit = lerpP(P[0], P[9], 0.42);
+  const side = (k, s) => add(P[k], uln, s);
+  const med = [
+    [mFore, add(P[0], uln, -0.06), mIn, mSplit],
+    [mSplit, lerpP(mSplit, P[2], 0.6), side(2, 0.04), side(3, 0.04), side(4, 0.04)],
+    [mSplit, lerpP(mSplit, P[5], 0.7), side(5, -0.045), side(6, -0.045), side(8, -0.04)],
+    [mSplit, lerpP(mSplit, P[9], 0.6), side(9, -0.045), side(10, -0.045), side(12, -0.04)],
+    [mSplit, lerpP(mSplit, P[13], 0.6), side(13, -0.045), side(14, -0.045), side(16, -0.04)],
+    [lerpP(mIn, mSplit, 0.5), lerpP(B.trapezium.c, P[2], 0.55)]      // recurrent branch to the thenar muscles
+  ];
+  out.push({ kind: 'paths', paths: med, w: 0.011 * L, ...info('medianN', 'nerve') });
+  // ulnar nerve: beside the pisiform (Guyon's canal), to the little finger and the little-finger side of the ring finger
+  const uFore = add(add(P[0], u, -0.55), uln, 0.2), uCan = add(B.pisiform.c, u, 0.02), uSplit = add(lerpP(B.hamate.c, P[17], 0.45), uln, -0.02);
+  const uln_ = [
+    [uFore, add(B.pisiform.c, u, -0.1), uCan, uSplit],
+    [uSplit, side(17, 0.045), side(18, 0.045), side(20, 0.04)],
+    [uSplit, lerpP(uSplit, P[13], 0.7), side(13, 0.045), side(14, 0.045), side(16, 0.04)],
+    [uCan, lerpP(B.hamate.c, P[9], 0.55), lerpP(P[5], P[9], 0.15)]    // deep branch across the palm to the small muscles
+  ];
+  out.push({ kind: 'paths', paths: uln_, w: 0.01 * L, ...info('ulnarN', 'nerve') });
+  return out;
+}
+function ellHit(p, e, pad) {
+  const dx = p.x - e.c.x, dy = p.y - e.c.y, cs = Math.cos(-e.rot), sn = Math.sin(-e.rot);
+  const x = dx * cs - dy * sn, y = dx * sn + dy * cs; const rx = e.rx + pad, ry = e.ry + pad;
+  return (x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1;
+}
+function triHit(p, [a, b, c]) {
+  const s = (p1, p2, p3) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+  const d1 = s(p, a, b), d2 = s(p, b, c), d3 = s(p, c, a);
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+}
+function softHit(p, it) {
+  const pad = 4 * U;
+  if (it.kind === 'ell') return ellHit(p, it, pad);
+  if (it.kind === 'multi') return it.parts.some((e) => ellHit(p, e, pad));
+  if (it.kind === 'poly') return triHit(p, it.pts);
+  // thin strips drawn over the bones get a tight click zone
+  const w = Math.max(it.w * 0.9, 3 * U);
+  if (it.kind === 'band') { const wb = it.w * 0.5; return segDist(p, it.a, it.c) < wb || segDist(p, it.c, it.b) < wb; }   // narrow, so the wrist bones under it stay clickable
+  return it.paths.some((pa) => pa.some((q, i) => i && segDist(p, pa[i - 1], q) < w));
+}
+function drawHandSoft(c, h, group) {
+  const xr = S.look === 'xray', L = h.L;
+  for (const it of h.soft) {
+    if (it.group !== group) continue;
+    const hi = selBone === h.key + ':' + it.id;
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+    if (group === 'muscle') {
+      c.fillStyle = hi ? 'rgba(255,215,90,0.75)' : xr ? 'rgba(255,110,130,0.26)' : 'rgba(198,59,72,0.62)';
+      c.strokeStyle = hi ? '#ffd25f' : xr ? 'rgba(255,150,165,0.55)' : 'rgba(120,25,35,0.8)'; c.lineWidth = 1 * U;
+      const ell = (e) => { c.beginPath(); c.ellipse(e.c.x, e.c.y, Math.max(1, e.rx), Math.max(1, e.ry), e.rot, 0, 7); c.fill(); c.stroke(); };
+      if (it.kind === 'ell') ell(it);
+      else if (it.kind === 'multi') it.parts.forEach(ell);
+      else if (it.kind === 'poly') { c.beginPath(); it.pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.closePath(); c.fill(); c.stroke(); }
+      else if (it.kind === 'paths') {
+        c.strokeStyle = c.fillStyle; c.lineWidth = Math.max(2, it.w * 2);
+        for (const pa of it.paths) { c.beginPath(); pa.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); }
+      }
+    } else if (it.kind === 'band') {
+      c.strokeStyle = hi ? 'rgba(255,215,90,0.9)' : xr ? 'rgba(110,240,210,0.5)' : 'rgba(80,200,180,0.75)'; c.lineWidth = it.w;
+      c.beginPath(); c.moveTo(it.a.x, it.a.y); c.quadraticCurveTo(2 * it.c.x - (it.a.x + it.b.x) / 2, 2 * it.c.y - (it.a.y + it.b.y) / 2, it.b.x, it.b.y); c.stroke();
+    } else {
+      const w = Math.max(1.5 * U, it.w);
+      const col = hi ? '#ffd25f' : xr ? 'rgba(255,236,140,0.95)' : '#f1d27a';
+      if (xr) { c.strokeStyle = 'rgba(255,220,110,0.25)'; c.lineWidth = w * 2.4; for (const pa of it.paths) { c.beginPath(); pa.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); } }
+      else { c.strokeStyle = '#7a5d10'; c.lineWidth = w + 2 * U; for (const pa of it.paths) { c.beginPath(); pa.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); } }
+      c.strokeStyle = col; c.lineWidth = w;
+      for (const pa of it.paths) { c.beginPath(); pa.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); }
+    }
+    c.restore();
+  }
+}
+
+function segDist(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y; const l2 = dx * dx + dy * dy || 1;
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / l2, 0, 1);
+  return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+}
+
+function drawHand(c, h) {
+  const P = h.sp, L = h.L, xr = S.look === 'xray';
+  if (S.handOutline) {
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.strokeStyle = xr ? 'rgba(110,170,240,0.13)' : 'rgba(255,205,175,0.20)'; c.lineWidth = L * 0.22;
+    c.beginPath(); for (const [a, b] of HAND_CONN) { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); } c.stroke();
+    c.fillStyle = c.strokeStyle; c.beginPath(); [0, 1, 5, 9, 13, 17].forEach((i, k) => k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y)); c.closePath(); c.fill();
+    c.strokeStyle = xr ? 'rgba(140,200,255,0.35)' : 'rgba(255,230,210,0.5)'; c.lineWidth = 1.2 * U; c.setLineDash([5 * U, 5 * U]);
+    c.beginPath(); for (const [a, b] of HAND_CONN) { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); } c.stroke(); c.setLineDash([]);
+  }
+  if (S.handMuscles && h.soft) drawHandSoft(c, h, 'muscle');
+  if (S.handBones && h.bones) {
+    for (const b of h.bones) {
+      const hi = selBone === h.key + ':' + b.id;
+      if (b.kind === 'ell') {
+        c.save(); c.translate(b.c.x, b.c.y); c.rotate(b.rot);
+        if (xr) {
+          c.fillStyle = 'rgba(120,190,255,0.22)'; c.beginPath(); c.ellipse(0, 0, b.rx * 1.35, b.ry * 1.35, 0, 0, 7); c.fill();
+          c.fillStyle = hi ? 'rgba(255,220,110,0.95)' : 'rgba(225,242,255,0.85)'; c.beginPath(); c.ellipse(0, 0, b.rx, b.ry, 0, 0, 7); c.fill();
+          c.fillStyle = 'rgba(120,165,215,0.45)'; c.beginPath(); c.ellipse(0, 0, b.rx * 0.5, b.ry * 0.5, 0, 0, 7); c.fill();
+        } else {
+          c.fillStyle = hi ? '#ffd84a' : '#efe4c9'; c.strokeStyle = '#7a6a4d'; c.lineWidth = 1.2 * U;
+          c.beginPath(); c.ellipse(0, 0, b.rx, b.ry, 0, 0, 7); c.fill(); c.stroke();
+        }
+        c.restore();
+      } else {
+        const len = dist(b.a, b.b); if (len < 1) continue;
+        const g = Math.min(0.14 * len, b.r * 0.9);
+        const ux = (b.b.x - b.a.x) / len, uy = (b.b.y - b.a.y) / len;
+        const A = { x: b.a.x + ux * g, y: b.a.y + uy * g }, B = { x: b.b.x - ux * g, y: b.b.y - uy * g };
+        c.lineCap = 'round';
+        const line = (w, col) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.stroke(); };
+        const knobs = (r, col) => { c.fillStyle = col; c.beginPath(); c.arc(A.x, A.y, r, 0, 7); c.arc(B.x, B.y, r, 0, 7); c.fill(); };
+        if (xr) {
+          line(b.r * 2.7, 'rgba(120,190,255,0.18)');
+          line(b.r * 2, hi ? 'rgba(255,220,110,0.95)' : 'rgba(228,243,255,0.88)');
+          knobs(b.r * 1.18, hi ? 'rgba(255,230,140,1)' : 'rgba(240,250,255,0.95)');
+          line(b.r * 0.75, 'rgba(120,165,215,0.55)');
+        } else {
+          line(b.r * 2 + 2.4 * U, '#7a6a4d'); knobs(b.r * 1.18 + 1.2 * U, '#7a6a4d');
+          line(b.r * 2, hi ? '#ffd84a' : '#efe4c9'); knobs(b.r * 1.18, hi ? '#ffe27a' : '#f7eedb');
+        }
+      }
+    }
+  }
+  if (S.tendons) {
+    for (let i = 0; i < 5; i++) {
+      const j = FING[i].j; const start = i === 0 ? lerpP(P[0], P[1], 0.3) : lerpP(P[0], P[j[0]], 0.08);
+      const pts = i === 0 ? [start, P[2], P[3], P[4]] : [start, P[j[0]], P[j[1]], P[j[2]], P[j[3]]];
+      let flex = 0; for (let k = 1; k < pts.length - 1; k++) {
+        const a1 = Math.atan2(pts[k].y - pts[k - 1].y, pts[k].x - pts[k - 1].x), a2 = Math.atan2(pts[k + 1].y - pts[k].y, pts[k + 1].x - pts[k].x);
+        let d = Math.abs(a2 - a1); if (d > Math.PI) d = 2 * Math.PI - d; flex += d;
+      }
+      const t = clamp(flex / 2.2, 0, 1);    // a bent finger stretches its extensor tendon
+      c.strokeStyle = `rgba(255,${Math.round(225 - 90 * t)},${Math.round(150 - 90 * t)},${0.55 + 0.4 * t})`;
+      c.lineWidth = Math.max(1, L * 0.014 * (1 - 0.45 * t)); c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke();
+    }
+  }
+  if (S.handNerves && h.soft) drawHandSoft(c, h, 'nerve');
+}
+
+// =====================================================================
+//  Hit testing, pointing, selection
+// =====================================================================
+function hitHands(p, excludeKey) {
+  for (const h of hands.values()) {
+    if (h.key === excludeKey || h.alpha < 0.5 || !h.bones) continue;
+    // nerves are drawn on top, then bones, then the muscles underneath
+    if (S.handNerves && h.soft) for (const it of h.soft) if (it.group === 'nerve' && softHit(p, it)) return { type: 'hand', key: h.key + ':' + it.id, info: it };
+    if (S.handMuscles && h.soft) for (const it of h.soft) if (it.id === 'lumbricals' && softHit(p, it)) return { type: 'hand', key: h.key + ':' + it.id, info: it };
+    if (S.handBones) for (let i = h.bones.length - 1; i >= 0; i--) {
+      const b = h.bones[i];
+      const ok = b.kind === 'seg' ? segDist(p, b.a, b.b) < Math.max(b.r * 1.5, 6 * U) : dist(p, b.c) < Math.max(b.rx, b.ry) * 1.25;
+      if (ok) return { type: 'hand', key: h.key + ':' + b.id, info: b };
+    }
+    if (S.handMuscles && h.soft) for (const it of h.soft) if (it.group === 'muscle' && softHit(p, it)) return { type: 'hand', key: h.key + ':' + it.id, info: it };
+  }
+  return null;
+}
+// heavy loaded meshes: raycast at most ~10 times a second while pointing
+const rayCache = { t: -1e9, x: 0, y: 0, hit: null };
+function hitHead(p, force) {
+  if (!force && custom.tris > 40000) {
+    const now = performance.now();
+    if (now - rayCache.t < 100) return rayCache.hit;
+    rayCache.t = now; rayCache.hit = hitHeadRaw(p); return rayCache.hit;
+  }
+  return hitHeadRaw(p);
+}
+function hitHeadRaw(p) {
+  if (!scene || face.alpha < 0.5 || !face.M) return null;
+  const v = s2v(p.x, p.y); ndc.set(v.x / W * 2 - 1, -(v.y / H * 2 - 1));
+  raycaster.setFromCamera(ndc, camera);
+  const hideSimple = S.hideSimple && custom.count > 0 && S.custom;
+  let objs = []; for (const k in pickByLayer) if (S[k] && (k === 'custom' ? custom.count > 0 : !hideSimple)) objs = objs.concat(pickByLayer[k]);
+  const hits = raycaster.intersectObjects(objs, false);
+  if (!hits.length) return null;
+  // the ear and sinus structures sit inside bone: when the ray first meets skull bone, let them win
+  let hit = hits[0];
+  const lay = (h) => PARTS[h.object.userData.part] && PARTS[h.object.userData.part].layer;
+  if (lay(hit) === 'skull') { const inner = hits.find((h) => lay(h) === 'ear' || lay(h) === 'sinus'); if (inner) hit = inner; }
+  const part = PARTS[hit.object.userData.part]; if (!part) return null;
+  return { type: 'head', key: 'head:' + part.id, part: part.id, info: part };
+}
+let sel = null; const dwell = { key: null, t0: 0, x: 0, y: 0, prog: 0, done: false };
+function select(hit, x, y, now, sticky) {
+  sel = { hit, x, y, t: now, sticky: !!sticky };
+  const np = hit.type === 'head' ? hit.part : null, nb = hit.type === 'hand' ? hit.key : null;
+  if (np !== selPart || nb !== selBone) { selPart = np; selBone = nb; applyMaterials(); }
+}
+function clearSel() { if (sel || selPart || selBone) { sel = null; selPart = null; selBone = null; applyMaterials(); } }
+function updateDwell(ptr, now) {
+  if (!ptr) { dwell.key = null; dwell.prog = 0; return; }
+  const hit = hitHands(ptr, ptr.handKey) || hitHead(ptr);
+  const key = hit ? hit.key : null;
+  const moved = Math.hypot(ptr.x - dwell.x, ptr.y - dwell.y) > 0.018 * SW;
+  if (key !== dwell.key || moved) { dwell.key = key; dwell.t0 = now; dwell.x = ptr.x; dwell.y = ptr.y; dwell.done = false; }
+  dwell.prog = key ? clamp((now - dwell.t0) / 500, 0, 1) : 0;
+  if (key && dwell.prog >= 1) {
+    if (!dwell.done) { select(hit, ptr.x, ptr.y, now); dwell.done = true; }
+    else if (sel) { sel.t = now; sel.x = ptr.x; sel.y = ptr.y; }
+  }
+}
+stage.addEventListener('click', (e) => {
+  const r = stage.getBoundingClientRect(); const sc = Math.min(r.width / SW, r.height / SH);
+  const p = { x: (e.clientX - r.left - (r.width - SW * sc) / 2) / sc, y: (e.clientY - r.top - (r.height - SH * sc) / 2) / sc };
+  const hit = hitHands(p, null) || hitHead(p, true);
+  // a click keeps the name shown until the next click; clicking the same part or empty space hides it
+  if (hit && !(sel && sel.sticky && sel.hit.key === hit.key)) select(hit, p.x, p.y, performance.now(), true); else clearSel();
+});
+let lastPointerKey = null;
+function choosePointer() {
+  let best = null, bestScore = -1;
+  for (const h of hands.values()) {
+    if (h.alpha < 0.3 || !h.sp) continue;
+    const P = h.sp; const ext = dist(P[8], P[0]) / Math.max(1, dist(P[6], P[0]));
+    let score = ext; if (dist(P[12], P[0]) < dist(P[8], P[0]) * 0.8) score += 0.5; if (h.key === lastPointerKey) score += 0.3;
+    if (score > bestScore) { best = h; bestScore = score; }
+  }
+  lastPointerKey = best ? best.key : null;
+  if (!best) return null;
+  const P = best.sp;
+  return { x: P[8].x, y: P[8].y, handKey: best.key, extended: dist(P[8], P[0]) > dist(P[6], P[0]) * 1.1, alpha: best.alpha };
+}
+
+// =====================================================================
+//  2D overlay: labels, cards, HUD
+// =====================================================================
+const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+const PROTECT = [33, 133, 159, 145, 362, 263, 386, 374, 61, 291, 0, 17, 13, 14];
+const fAr = () => `700 ${Math.round(14 * U)}px Tajawal, sans-serif`;
+const fEn = () => `500 ${Math.round(10 * U)}px Tajawal, sans-serif`;
+function bboxOf(pts) { let a = 1e9, b = 1e9, c2 = -1e9, d = -1e9; for (const p of pts) { if (p.x < a) a = p.x; if (p.y < b) b = p.y; if (p.x > c2) c2 = p.x; if (p.y > d) d = p.y; } return { x1: a, y1: b, x2: c2, y2: d }; }
+function rr(c, x, y, w, h, r) { c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h); }
+function measureChip(c, it) {
+  c.font = fAr(); const wa = c.measureText(it.ar).width; c.font = fEn(); const we = c.measureText(it.en).width;
+  it.w = Math.max(wa, we) + 26 * U; it.h = 14 * U + 10 * U + 12 * U;
+}
+function layoutColumn(items, colX, alignRight, yMin, yMax) {
+  items.sort((a, b) => a.ay - b.ay); const gap = 3 * U;
+  for (const it of items) it.y = clamp(it.ay, yMin + it.h / 2, yMax - it.h / 2);
+  for (let i = 1; i < items.length; i++) { const m = items[i - 1].y + items[i - 1].h / 2 + gap + items[i].h / 2; if (items[i].y < m) items[i].y = m; }
+  const n = items.length; if (n && items[n - 1].y + items[n - 1].h / 2 > yMax) {
+    items[n - 1].y = yMax - items[n - 1].h / 2;
+    for (let i = n - 2; i >= 0; i--) { const m = items[i + 1].y - items[i + 1].h / 2 - gap - items[i].h / 2; if (items[i].y > m) items[i].y = m; }
+  }
+  for (const it of items) { if (alignRight) { it.x2 = colX; it.x1 = colX - it.w; } else { it.x1 = colX; it.x2 = colX + it.w; } it.alignRight = alignRight; }
+}
+function drawChip(c, it) {
+  if (it.dim) { const a = c.globalAlpha; c.globalAlpha = a * 0.22; it.dim = false; drawChip(c, it); it.dim = true; c.globalAlpha = a; return; }
+  const hi = it.hi; const xr = S.look === 'xray';
+  // leader line
+  const ex = it.alignRight ? it.x2 : it.x1;
+  c.strokeStyle = hi ? '#ffd25f' : (xr ? 'rgba(150,220,255,0.75)' : 'rgba(255,255,255,0.8)'); c.lineWidth = 1.1 * U;
+  c.beginPath(); c.moveTo(it.ax, it.ay); c.lineTo(ex + (it.alignRight ? 6 : -6) * U, it.y); c.lineTo(ex, it.y); c.stroke();
+  c.fillStyle = hi ? '#ffd25f' : it.color; c.beginPath(); c.arc(it.ax, it.ay, 2.6 * U, 0, 7); c.fill();
+  // chip
+  rr(c, it.x1, it.y - it.h / 2, it.w, it.h, 7 * U);
+  c.fillStyle = hi ? 'rgba(60,44,6,0.9)' : 'rgba(3,12,28,0.78)'; c.fill();
+  c.strokeStyle = hi ? '#ffd25f' : 'rgba(95,212,255,0.45)'; c.lineWidth = 1 * U; c.stroke();
+  c.fillStyle = it.color; c.beginPath(); c.arc(it.x2 - 9 * U, it.y - 5 * U, 3.2 * U, 0, 7); c.fill();
+  c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'middle';
+  c.font = fAr(); c.fillStyle = '#ffffff'; c.fillText(it.ar, it.x2 - 17 * U, it.y - 5 * U);
+  c.direction = 'ltr'; c.font = fEn(); c.fillStyle = 'rgba(170,200,235,0.95)'; c.textAlign = 'right'; c.fillText(it.en, it.x2 - 17 * U, it.y + 9 * U);
+}
+function projectAnchor(o) {
+  o.getWorldPosition(tv); const depth = -tv.z; tv.project(camera);
+  if (tv.z > 1 || depth <= 0) return null;
+  return { ...v2s((tv.x + 1) / 2 * W, (1 - tv.y) / 2 * H), depth };
+}
+function inLens(p, lens) { return !lens || Math.hypot(p.x - lens.x, p.y - lens.y) < lens.r; }
+const labelYMin = () => (S.ratio === '9:16' ? 330 : 58 * U), labelYMax = () => (S.ratio === '9:16' ? 1610 : SH - 34 * U);
+
+let placedRects = [];
+function drawHeadLabels(c, lens) {
+  // names appear only for the selected part (click or point), unless "show all names" is on
+  if ((!S.allNames && !selPart) || face.alpha < 0.3 || !face.slm || !scene) return;
+  let items = [];
+  for (const p of PART_LIST) {
+    if (!p.label || !S[p.layer] || !p.anchors.length) continue;
+    let a;
+    if (p.anchors.length === 2) {
+      const A = projectAnchor(p.anchors[0]), B = projectAnchor(p.anchors[1]); const arr = [A, B];
+      const pi = p.pref, oi = 1 - pi;
+      if (!arr[pi]) a = arr[oi]; else if (!arr[oi]) a = arr[pi]; else a = (arr[pi].depth - arr[oi].depth > 2.5) ? arr[oi] : arr[pi];
+    } else a = projectAnchor(p.anchors[0]);
+    if (!a || !inLens(a, lens)) continue;
+    items.push({ ax: a.x, ay: a.y, ar: p.ar, en: p.en, color: LAYER_COL[p.layer], hi: selPart === p.id || (selPart && PARTS[selPart] && p.id === 'eyeMuscles' && ['sRectus', 'iRectus', 'mRectus', 'lRectus', 'sOblique', 'iOblique'].includes(selPart)) });
+  }
+  if (!S.allNames) items = items.filter((it) => it.hi);
+  if (!items.length) return;
+  const oval = FACE_OVAL.map((i) => n2s(face.slm[i])); const fb = bboxOf(oval);
+  const pb = bboxOf(PROTECT.map((i) => n2s(face.slm[i])));
+  const pw = (pb.x2 - pb.x1) * 0.12; pb.x1 -= pw; pb.x2 += pw;
+  const cx = (fb.x1 + fb.x2) / 2, fw = fb.x2 - fb.x1;
+  c.save(); for (const it of items) measureChip(c, it);
+  const left = [], right = [], mid = [];
+  for (const it of items) { if (Math.abs(it.ax - cx) < fw * 0.08) mid.push(it); else (it.ax < cx ? left : right).push(it); }
+  for (const it of mid) (left.length <= right.length ? left : right).push(it);
+  const maxW = (arr) => arr.reduce((m, it) => Math.max(m, it.w), 0);
+  let lx = fb.x1 - 14 * U; const lw = maxW(left); if (lx - lw < 8) lx = Math.min(8 + lw, pb.x1 - 8 * U);
+  let rx = fb.x2 + 14 * U; const rw = maxW(right); if (rx + rw > SW - 8) rx = Math.max(SW - 8 - rw, pb.x2 + 8 * U);
+  layoutColumn(left, lx, true, labelYMin(), labelYMax());
+  layoutColumn(right, rx, false, labelYMin(), labelYMax());
+  // fade head labels that would cover a hand, so the hand bones stay visible
+  const hboxes = [];
+  for (const h of hands.values()) if (h.sp && h.alpha > 0.3) { const b = bboxOf(h.sp); const m = h.L * 0.12; hboxes.push({ x1: b.x1 - m, y1: b.y1 - m, x2: b.x2 + m, y2: b.y2 + m }); }
+  for (const it of items) it.dim = !it.hi && hboxes.some((b) => it.x1 < b.x2 && it.x2 > b.x1 && it.y - it.h / 2 < b.y2 && it.y + it.h / 2 > b.y1);
+  c.globalAlpha = face.alpha; for (const it of items) drawChip(c, it);
+  for (const it of items) placedRects.push({ x1: it.x1, x2: it.x2, y1: it.y - it.h / 2, y2: it.y + it.h / 2 });
+  c.restore();
+}
+function drawHandLabels(c, h, lens) {
+  if (!S.allNames || !S.handBones || h.alpha < 0.3 || !h.anchors) return;
+  const sideAr = h.side === 'R' ? 'اليد اليمنى' : h.side === 'L' ? 'اليد اليسرى' : 'اليد';
+  const sideEn = h.side === 'R' ? 'Right hand' : h.side === 'L' ? 'Left hand' : 'Hand';
+  const P = h.sp; const hb = bboxOf(P);
+  const a = h.anchors; const items = [
+    { ax: P[0].x, ay: P[0].y, ar: `${sideAr} · 27 عظمة`, en: `${sideEn} · 27 bones` },
+    { ax: a.carpal.x, ay: a.carpal.y, ar: 'عظام الرسغ (8)', en: 'Carpals' },
+    { ax: a.mc.x, ay: a.mc.y, ar: 'عظام المشط (5)', en: 'Metacarpals' },
+    { ax: a.ph.x, ay: a.ph.y, ar: 'السلاميات (14)', en: 'Phalanges' }
+  ].filter((it) => inLens({ x: it.ax, y: it.ay }, lens));
+  if (!items.length) return;
+  c.save();
+  for (const it of items) { it.color = LAYER_COL.hand; it.hi = false; measureChip(c, it); }
+  const w = items.reduce((m, it) => Math.max(m, it.w), 0);
+  // try a column on each side of the hand and keep the one that overlaps other labels least
+  const overlap = () => {
+    let s = 0;
+    for (const it of items) for (const r of placedRects) {
+      const ox = Math.min(it.x2, r.x2) - Math.max(it.x1, r.x1), oy = Math.min(it.y + it.h / 2, r.y2) - Math.max(it.y - it.h / 2, r.y1);
+      if (ox > 0 && oy > 0) s += ox * oy;
+    }
+    return s;
+  };
+  const placedMin = placedRects.reduce((m, r) => Math.min(m, r.x1), 1e9), placedMax = placedRects.reduce((m, r) => Math.max(m, r.x2), -1e9);
+  const choose = () => {
+    const ww = items.reduce((m, it) => Math.max(m, it.w), 0);
+    const cands = [[true, hb.x1 - 12 * U], [false, hb.x2 + 12 * U]];
+    if (placedRects.length) cands.push([false, placedMax + 10 * U], [true, placedMin - 10 * U]);
+    let best = null;
+    for (const [alignRight, col] of cands) {
+      const off = alignRight ? col - ww < 8 : col + ww > SW - 8; if (off) continue;
+      layoutColumn(items, col, alignRight, labelYMin(), labelYMax());
+      const s = overlap(); if (!best || s < best.s) best = { s, alignRight, col };
+    }
+    return best;
+  };
+  let best = choose();
+  if (!best || best.s > 0) { items.splice(1); best = choose(); }        // crowded: keep only the hand-name chip
+  if (!best) best = { alignRight: false, col: clamp(hb.x2 + 12 * U, 8, SW - 8 - w) };
+  layoutColumn(items, best.col, best.alignRight, labelYMin(), labelYMax());
+  c.globalAlpha = h.alpha; for (const it of items) drawChip(c, it);
+  for (const it of items) placedRects.push({ x1: it.x1, x2: it.x2, y1: it.y - it.h / 2, y2: it.y + it.h / 2 });
+  c.restore();
+}
+function wrapText(c, text, maxW) {
+  const words = text.split(' '); const lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+function drawCard(c, now) {
+  if (!sel) return;
+  if (!sel.sticky && now - sel.t > 4500) { clearSel(); return; }
+  const info = sel.hit.info; const pad = 14 * U, maxW = 290 * U;
+  c.save(); c.direction = 'rtl'; c.textBaseline = 'top';
+  c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; const tw = c.measureText(info.ar).width;
+  c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`; const lines = wrapText(c, info.fact, maxW);
+  const w = Math.min(maxW, Math.max(tw, ...lines.map((l) => c.measureText(l).width), 120 * U)) + pad * 2;
+  const h = pad * 2 + 22 * U + 15 * U + 6 * U + lines.length * 21 * U;
+  let prot = null; if (face.slm && face.alpha > 0.3) { prot = bboxOf(PROTECT.map((i) => n2s(face.slm[i]))); }
+  const yMin = SAFE.top + 70 * U * (S.ratio === '9:16' ? 0.6 : 1), yMax = SAFE.bottom - 30 * U;
+  const cands = [[sel.x + 24 * U, sel.y - h / 2], [sel.x - 24 * U - w, sel.y - h / 2], [sel.x - w / 2, sel.y - 24 * U - h], [sel.x - w / 2, sel.y + 24 * U]];
+  const fits = ([x, y]) => x >= 8 && x + w <= SW - 8 && y >= yMin && y + h <= yMax && !(prot && x < prot.x2 && x + w > prot.x1 && y < prot.y2 && y + h > prot.y1);
+  let pos = cands.find(fits) || [8 + 4 * U, yMin];
+  const [x, y] = pos;
+  rr(c, x, y, w, h, 12 * U); c.fillStyle = 'rgba(4,14,30,0.92)'; c.fill(); c.strokeStyle = '#ffd25f'; c.lineWidth = 1.5 * U; c.stroke();
+  c.textAlign = 'right'; c.fillStyle = '#ffd25f'; c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; c.fillText(info.ar, x + w - pad, y + pad);
+  c.direction = 'ltr'; c.fillStyle = 'rgba(170,200,235,0.95)'; c.font = `500 ${Math.round(12 * U)}px Tajawal, sans-serif`; c.fillText(info.en, x + w - pad, y + pad + 24 * U);
+  c.direction = 'rtl'; c.fillStyle = '#e8f2ff'; c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`;
+  lines.forEach((l, i) => c.fillText(l, x + w - pad, y + pad + 22 * U + 15 * U + 6 * U + i * 21 * U));
+  c.restore();
+}
+function drawFaceOutline(c) {
+  if (!face.slm) return;
+  c.save(); c.globalAlpha = face.alpha;
+  c.strokeStyle = S.look === 'xray' ? 'rgba(120,200,255,0.55)' : 'rgba(255,255,255,0.55)'; c.lineWidth = 1.4 * U; c.setLineDash([6 * U, 5 * U]);
+  c.beginPath(); FACE_OVAL.forEach((i, k) => { const p = n2s(face.slm[i]); k ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); }); c.closePath(); c.stroke();
+  c.restore();
+}
+function drawDots(c) {
+  c.save();
+  if (face.slm && face.alpha > 0.05) {
+    c.globalAlpha = face.alpha * 0.7; c.fillStyle = '#5fd4ff';
+    for (const p of face.slm) { const s = n2s(p); c.fillRect(s.x - 1 * U, s.y - 1 * U, 2 * U, 2 * U); }
+  }
+  for (const h of hands.values()) {
+    if (!h.sp || h.alpha < 0.05) continue;
+    c.globalAlpha = h.alpha * 0.8; c.strokeStyle = '#5dff9b'; c.lineWidth = 1.2 * U;
+    c.beginPath(); for (const [a, b] of HAND_CONN) { c.moveTo(h.sp[a].x, h.sp[a].y); c.lineTo(h.sp[b].x, h.sp[b].y); } c.stroke();
+    c.fillStyle = '#5dff9b'; for (const p of h.sp) { c.beginPath(); c.arc(p.x, p.y, 2.6 * U, 0, 7); c.fill(); }
+  }
+  c.restore();
+}
+let fps = 0;
+function drawHUD(c, now, ptr) {
+  const top = S.ratio === '9:16' ? 262 : 14 * U;
+  const bottom = S.ratio === '9:16' ? 1660 : SH - 12 * U;
+  c.save(); c.textBaseline = 'top';
+  // title (right side, RTL)
+  c.direction = 'rtl'; c.textAlign = 'right';
+  c.fillStyle = '#ffffff'; c.shadowColor = 'rgba(95,212,255,0.8)'; c.shadowBlur = 12 * U;
+  c.font = `800 ${Math.round(24 * U)}px Tajawal, sans-serif`; c.fillText('مرآة الأشعة', SW - 16 * U, top);
+  c.shadowBlur = 0; c.fillStyle = 'rgba(180,215,250,0.95)'; c.font = `500 ${Math.round(12 * U)}px Tajawal, sans-serif`;
+  c.fillText('تتبّع الوجه واليد بالذكاء الاصطناعي', SW - 16 * U, top + 30 * U);
+  // status chip (left side)
+  const fOk = face.alpha > 0.5, hOk = [...hands.values()].some((h) => h.alpha > 0.5);
+  const txt = fOk && hOk ? 'تم تتبع الوجه واليد' : fOk ? 'تم تتبع الوجه' : hOk ? 'تم تتبع اليد' : 'ابحث عن الوجه واليد…';
+  const fpsTxt = `${fps} FPS`;
+  c.font = `700 ${Math.round(13 * U)}px Tajawal, sans-serif`;
+  const wt = c.measureText(txt).width, wf = c.measureText(fpsTxt).width;
+  const w = wt + wf + 52 * U, h = 26 * U, x0 = 14 * U;
+  rr(c, x0, top, w, h, 13 * U); c.fillStyle = 'rgba(3,12,28,0.78)'; c.fill(); c.strokeStyle = 'rgba(95,212,255,0.45)'; c.lineWidth = 1 * U; c.stroke();
+  c.fillStyle = fOk && hOk ? '#5dff9b' : fOk || hOk ? '#ffd25f' : '#ff6b6b'; c.beginPath(); c.arc(x0 + w - 13 * U, top + h / 2, 4.5 * U, 0, 7); c.fill();
+  c.textBaseline = 'middle'; c.fillStyle = '#ffffff'; c.fillText(txt, x0 + w - 22 * U, top + h / 2 + 1);
+  c.direction = 'ltr'; c.textAlign = 'left'; c.fillStyle = '#ffd25f'; c.fillText(fpsTxt, x0 + 12 * U, top + h / 2 + 1);
+  c.direction = 'rtl'; c.textAlign = 'right';
+  // hints
+  c.textAlign = 'center'; c.direction = 'rtl'; c.font = `700 ${Math.round(16 * U)}px Tajawal, sans-serif`;
+  if (now - face.seen > 1500 && ![...hands.values()].some((x) => x.alpha > 0.3)) {
+    c.fillStyle = 'rgba(3,12,28,0.7)'; rr(c, SW / 2 - 190 * U, SH / 2 - 22 * U, 380 * U, 44 * U, 12 * U); c.fill();
+    c.fillStyle = '#ffffff'; c.fillText('انظر إلى الكاميرا وارفع يدك', SW / 2, SH / 2);
+  } else if (S.mode === 'lens' && !ptr) {
+    c.fillStyle = 'rgba(3,12,28,0.7)'; rr(c, SW / 2 - 210 * U, bottom - 62 * U, 420 * U, 36 * U, 12 * U); c.fill();
+    c.fillStyle = '#ffffff'; c.fillText('ارفع إصبع السبابة لتحريك عدسة الأشعة', SW / 2, bottom - 44 * U);
+  }
+  // disclaimer
+  c.textBaseline = 'bottom'; c.font = `500 ${Math.round(11 * U)}px Tajawal, sans-serif`; c.fillStyle = 'rgba(200,220,245,0.85)';
+  c.fillText('نموذج تشريحي تعليمي، ليس أشعة حقيقية ولا فحصاً طبياً', SW / 2, bottom);
+  if (custom.count && S.custom && (custom.bp3d || S.bp3dCredit)) {
+    c.direction = 'ltr'; c.font = `500 ${Math.round(10 * U)}px Tajawal, sans-serif`; c.fillStyle = 'rgba(200,220,245,0.75)';
+    c.fillText('BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan', SW / 2, bottom - 16 * U);
+    c.direction = 'rtl';
+  }
+  // dwell progress ring
+  if (ptr && dwell.key && dwell.prog > 0 && dwell.prog < 1) {
+    c.strokeStyle = '#ffd25f'; c.lineWidth = 3 * U; c.beginPath(); c.arc(ptr.x, ptr.y, 16 * U, -Math.PI / 2, -Math.PI / 2 + dwell.prog * Math.PI * 2); c.stroke();
+  }
+  if (ptr && ptr.extended) { c.fillStyle = 'rgba(255,210,95,0.9)'; c.beginPath(); c.arc(ptr.x, ptr.y, 4 * U, 0, 7); c.fill(); }
+  // countdown
+  if (countdown > 0) {
+    c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(0, 0, SW, SH);
+    c.fillStyle = '#ffffff'; c.textBaseline = 'middle'; c.font = `800 ${Math.round(140 * U)}px Tajawal, sans-serif`; c.fillText(String(countdown), SW / 2, SH / 2);
+  }
+  c.restore();
+}
+
+// =====================================================================
+//  Compositing
+// =====================================================================
+let headRendered = false;
+function drawRevealed(c) {
+  const xr = S.look === 'xray';
+  if (xr) {
+    c.fillStyle = '#020a18'; c.fillRect(0, 0, SW, SH);
+    c.globalAlpha = S.camX; c.globalCompositeOperation = 'luminosity'; drawMirrored(c, video);
+    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+    c.fillStyle = 'rgba(0,14,40,0.22)'; c.fillRect(0, 0, SW, SH);
+  } else {
+    c.fillStyle = '#000'; c.fillRect(0, 0, SW, SH);
+    c.globalAlpha = S.camC; drawMirrored(c, video); c.globalAlpha = 1;
+  }
+  if (S.headOutline && face.alpha > 0.01) drawFaceOutline(c);
+  if (headRendered) {
+    c.save(); c.globalAlpha = face.alpha; c.globalCompositeOperation = xr ? 'lighter' : 'source-over';
+    drawMirrored(c, glCanvas);
+    if (xr) { c.globalAlpha = face.alpha * 0.9; drawMirrored(c, bloomCanvas); }
+    c.restore();
+  }
+  for (const h of hands.values()) {
+    if (h.alpha < 0.01 || !h.sp) continue;
+    c.save(); c.globalAlpha = h.alpha; if (xr) c.globalCompositeOperation = 'lighter'; drawHand(c, h); c.restore();
+  }
+}
+
+// =====================================================================
+//  Main loop
+// =====================================================================
+let lastVideoTime = -1, parity = 0, slow = false, detMs = 0, lastT = performance.now();
+let frames = 0, fpsT = performance.now();
+const lens = { x: 0, y: 0, a: 0 };
+let ptrCache = null;
+
+function runDetect(now) {
+  if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
+  lastVideoTime = video.currentTime;
+  const t0 = performance.now();
+  const doFace = !slow || parity === 0, doHand = !slow || parity === 1; parity ^= 1;
+  if (doFace && det.face) {
+    try { onFace(det.face.detectForVideo(video, performance.now()), now); }
+    catch (e) { console.error(e); recoverCPU('face'); }
+  }
+  if (doHand && det.hand) {
+    try { onHands(det.hand.detectForVideo(video, performance.now()), now); }
+    catch (e) { console.error(e); recoverCPU('hand'); }
+  }
+  const dt = performance.now() - t0; detMs += ((slow ? dt * 2 : dt) - detMs) * 0.1;
+  if (!slow && detMs > 26) slow = true; else if (slow && detMs < 16) slow = false;
+}
+let recovering = { face: false, hand: false };
+async function recoverCPU(which) {
+  if (recovering[which]) return; recovering[which] = true;
+  const isFace = which === 'face';
+  if (isFace) det.face = null; else det.hand = null;
+  try {
+    const lm = await (isFace ? FaceLandmarkerC : HandLandmarkerC).createFromOptions(vision, { ...(isFace ? det.faceOpts : det.handOpts), baseOptions: { ...(isFace ? det.faceOpts : det.handOpts).baseOptions, delegate: 'CPU' } });
+    if (isFace) { det.face = lm; det.faceDelegate = 'CPU'; } else { det.hand = lm; det.handDelegate = 'CPU'; }
+    $('#engine').textContent = `المعالج: الوجه ${det.faceDelegate} · اليد ${det.handDelegate}`;
+  } catch (e) { showError('توقّف نموذج التتبّع عن العمل. أعد تحميل الصفحة.', e.message); }
+  recovering[which] = false;
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now(); const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  frames++; if (now - fpsT > 1000) { fps = Math.round(frames * 1000 / (now - fpsT)); frames = 0; fpsT = now; }
+
+  // resize render target if the camera resolution changed
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (vw && vh) {
+    const sc = Math.min(1, 1280 / Math.max(vw, vh)); const nw = Math.round(vw * sc), nh = Math.round(vh * sc);
+    if (nw !== W || nh !== H) {
+      W = nw; H = nh; renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+      bloomCanvas.width = Math.round(W / 4); bloomCanvas.height = Math.round(H / 4); computeMap();
+    }
+  }
+
+  runDetect(now);
+
+  // visibility easing (fade out gently when tracking is lost)
+  const fVis = now - face.seen < 220 && face.has;
+  face.alpha += ((fVis ? 1 : 0) - face.alpha) * Math.min(1, dt * (fVis ? 8 : 5));
+  for (const [k, h] of hands) {
+    const vis = now - h.seen < 220;
+    h.alpha += ((vis ? 1 : 0) - h.alpha) * Math.min(1, dt * (vis ? 10 : 6));
+    if (h.pts) {
+      h.sp = h.pts.map(n2s);
+      const r = buildHandBones(h.sp); h.bones = r.bones; h.L = r.L; h.anchors = r.anchors;
+      h.soft = (S.handMuscles || S.handNerves) ? buildHandSoft(h.sp, r) : null;
+    }
+    if (!vis && h.alpha < 0.01 && now - h.seen > 1500) hands.delete(k);
+  }
+
+  // 3D head
+  headRendered = false;
+  if (face.has && face.alpha > 0.01) {
+    calibrateStep();
+    updateHead();
+    if (HEAD_LAYERS.some((k) => S[k]) || (S.custom && custom.count)) {
+      renderer.render(scene, camera); headRendered = true;
+      if (S.look === 'xray') { bctx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height); bctx.filter = 'blur(2px)'; bctx.drawImage(glCanvas, 0, 0, bloomCanvas.width, bloomCanvas.height); bctx.filter = 'none'; }
+    }
+  }
+
+  // pointer & lens
+  const ptr = choosePointer();
+  if (ptr) { if (lens.a < 0.05) { lens.x = ptr.x; lens.y = ptr.y; } lens.x += (ptr.x - lens.x) * 0.6; lens.y += (ptr.y - lens.y) * 0.6; }
+  lens.a += ((ptr ? 1 : 0) - lens.a) * Math.min(1, dt * (ptr ? 8 : 4));
+  const pointing = ptr && ptr.extended ? ptr : null;
+  updateDwell(pointing, now);
+
+  // compose stage
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  let lensObj = null;
+  if (S.mode === 'full') drawRevealed(ctx);
+  else {
+    drawMirrored(ctx, video);
+    if (lens.a > 0.01) {
+      const R = S.lens * Math.min(SW, SH) * (1 - Math.pow(1 - lens.a, 3));
+      lensObj = { x: lens.x, y: lens.y, r: R };
+      ctx.save(); ctx.beginPath(); ctx.arc(lens.x, lens.y, R, 0, Math.PI * 2); ctx.clip(); drawRevealed(ctx); ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(120,225,255,0.95)'; ctx.lineWidth = 3 * U; ctx.shadowColor = '#5fd4ff'; ctx.shadowBlur = 18 * U;
+      ctx.beginPath(); ctx.arc(lens.x, lens.y, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    } else lensObj = { x: -1e5, y: -1e5, r: 0 };
+  }
+  if (S.dots) drawDots(ctx);
+  placedRects = [];
+  drawHeadLabels(ctx, lensObj);
+  for (const h of hands.values()) if (h.sp) drawHandLabels(ctx, h, lensObj);
+  drawCard(ctx, now);
+  drawHUD(ctx, now, pointing ? ptr : (S.mode === 'lens' ? ptr : null));
+}
+
+// =====================================================================
+//  Recording (stage canvas only, countdown, automatic download)
+// =====================================================================
+let rec = null, recChunks = [], recStart = 0, countdown = 0, recTimer = null;
+function pickMime() {
+  const c = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  for (const m of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+$('#recBtn').addEventListener('click', async () => {
+  const btn = $('#recBtn');
+  if (rec) { rec.stop(); return; }
+  if (!window.MediaRecorder || !stage.captureStream) { showError('التسجيل غير مدعوم في هذا المتصفح. استخدم Google Chrome.'); return; }
+  if (countdown > 0) return;
+  for (let i = 3; i > 0; i--) { countdown = i; btn.textContent = `يبدأ التسجيل بعد ${i}…`; await new Promise((r) => setTimeout(r, 1000)); }
+  countdown = 0;
+  const mime = pickMime();
+  try { rec = new MediaRecorder(stage.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 8e6 } : undefined); }
+  catch (e) { showError('تعذّر بدء التسجيل.', e.message); rec = null; btn.textContent = '● تسجيل فيديو'; return; }
+  recChunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
+  rec.onstop = () => {
+    const type = rec.mimeType || mime || 'video/webm'; const ext = type.includes('mp4') ? 'mp4' : 'webm';
+    const blob = new Blob(recChunks, { type }); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `xray-mirror-${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    rec = null; clearInterval(recTimer); btn.classList.remove('rec'); btn.textContent = '● تسجيل فيديو';
+  };
+  rec.start(250); recStart = performance.now(); btn.classList.add('rec');
+  const tick = () => { const s = Math.floor((performance.now() - recStart) / 1000); btn.textContent = `■ إيقاف التسجيل (${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')})`; };
+  tick(); recTimer = setInterval(tick, 500);
+});
+
+// test hook (only with ?debug in the URL): lets a tester inject synthetic tracking results
+if (new URLSearchParams(location.search).has('debug')) window.__xray = { onFace, onHands, face, hands, S, cal, hitHead, hitHands, PARTS, projectAnchor, frame: () => { lastT = performance.now() - 33; loop(); }, get W() { return W; }, get H() { return H; } };
+</script>
+</body>
+</html>
