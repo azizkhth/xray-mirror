@@ -64,6 +64,9 @@ button:hover{border-color:var(--acc)}
 #err p{max-width:620px;font-size:17px;line-height:1.7;margin:4px 0}
 #errDetail{direction:ltr;color:#a88;font-size:12px!important;font-family:monospace}
 .tiny{font-size:12px!important;color:#6f8db3!important}
+html[lang=en] .row small{display:none}
+.overlay .langBtn{position:absolute;top:14px;inset-inline-end:14px;font-size:15px}
+#panel .langBtn{width:100%;margin-bottom:10px}
 
 @media (max-width:860px){
   body{flex-direction:column;overflow-y:auto;height:auto;min-height:100%}
@@ -75,6 +78,14 @@ button:hover{border-color:var(--acc)}
 }
 </style>
 <script>
+  // Language: ?lang=en|ar, then the saved choice, then the browser language.
+  window.__lang = (function () {
+    var q = (location.search.match(/[?&]lang=(en|ar)\b/) || [])[1]; if (q) return q;
+    try { var s = JSON.parse(localStorage.getItem('xrayMirror.v1') || 'null'); if (s && (s.lang === 'en' || s.lang === 'ar')) return s.lang; } catch (e) { /* ignore */ }
+    return /^ar/i.test(navigator.language || '') ? 'ar' : 'en';
+  })();
+  document.documentElement.lang = window.__lang; document.documentElement.dir = window.__lang === 'en' ? 'ltr' : 'rtl';
+  if (window.__lang === 'en') document.title = 'X-Ray Mirror';
   // Fallback error display in case the module script fails to load or parse.
   window.__fatal = function (msg, detail) {
     var e = document.getElementById('err'); if (!e) { alert(msg); return; }
@@ -83,7 +94,7 @@ button:hover{border-color:var(--acc)}
     document.getElementById('errDetail').textContent = detail || '';
   };
   window.addEventListener('error', function (ev) {
-    if (!window.__appStarted) window.__fatal('تعذّر تشغيل الصفحة. جرّب فتحها في متصفح Google Chrome حديث.', ev.message || '');
+    if (!window.__appStarted) window.__fatal(window.__lang === 'en' ? 'The page could not start. Try opening it in an up-to-date Google Chrome.' : 'تعذّر تشغيل الصفحة. جرّب فتحها في متصفح Google Chrome حديث.', ev.message || '');
   });
 </script>
 </head>
@@ -93,6 +104,7 @@ button:hover{border-color:var(--acc)}
   <video id="video" playsinline muted autoplay></video>
 
   <div class="overlay" id="startOverlay">
+    <button class="langBtn" type="button"></button>
     <h2>مرآة الأشعة</h2>
     <p>قف أمام الكاميرا، وسترى جمجمتك ودماغك وعضلات وجهك وعينيك وعظام يدك مرسومةً فوق رأسك ويدك الحقيقيين، وتتحرك معك.</p>
     <p class="tiny">يعمل التتبّع بالكامل داخل متصفحك (MediaPipe) — لا يُرسَل أي فيديو إلى أي خادم.</p>
@@ -111,6 +123,7 @@ button:hover{border-color:var(--acc)}
 
 <aside id="panel">
   <button id="panelToggle">⚙ الإعدادات</button>
+  <button class="langBtn" type="button"></button>
   <h1>مرآة الأشعة</h1>
   <p class="sub">لوحة التحكم (لا تظهر في التسجيل)</p>
 
@@ -223,17 +236,26 @@ const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const lerpP = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 const midP = (a, b) => lerpP(a, b, 0.5);
+// ---------------- language (Arabic / English)
+const EN = () => S.lang === 'en';
+const tr = (ar, en) => (EN() ? en : ar);
+const DIR = () => (EN() ? 'ltr' : 'rtl');
+const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+const nameOf = (o) => (EN() ? cap(o.en) : o.ar);
+const subOf = (o) => (EN() ? '' : o.en);
+const factOf = (o) => (EN() ? (o.factEn || o.fact) : o.fact) || '';
 
 function showError(msg, detail) {
   const e = $('#err'); e.hidden = false;
   $('#errText').textContent = msg;
   $('#errDetail').textContent = detail || '';
 }
-window.addEventListener('error', (ev) => showError('حدث خطأ غير متوقع في الصفحة.', ev.message || ''));
+window.addEventListener('error', (ev) => showError(tr('حدث خطأ غير متوقع في الصفحة.', 'Something unexpected went wrong on the page.'), ev.message || ''));
 window.addEventListener('unhandledrejection', (ev) => {
-  const r = ev.reason; showError((r && r.userMsg) || 'حدث خطأ غير متوقع أثناء التحميل.', String((r && r.message) || r || ''));
+  const r = ev.reason; showError((r && r.userMsg) || tr('حدث خطأ غير متوقع أثناء التحميل.', 'Something unexpected went wrong while loading.'), String((r && r.message) || r || ''));
 });
-const setLoad = (t) => { $('#loadStatus').textContent = t; };
+let lastLoad = ['جارٍ التحضير…', 'Getting ready…'];
+const setLoad = (ar, en) => { lastLoad = [ar, en]; $('#loadStatus').textContent = tr(ar, en); };
 function appError(userMsg, cause) { const e = new Error((cause && cause.message) || String(cause || userMsg)); e.userMsg = userMsg; return e; }
 
 // ---------------- settings
@@ -247,6 +269,7 @@ const HEAD_LAYERS = ['skull', 'brain', 'muscles', 'eyes', 'vessels', 'ear', 'sin
 const LS_KEY = 'xrayMirror.v1';
 let S = { ...DEF };
 try { const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (saved) S = { ...DEF, ...saved }; } catch (e) { /* storage unavailable */ }
+S.lang = window.__lang === 'en' ? 'en' : 'ar';
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
 
 // ---------------- stage geometry
@@ -298,9 +321,115 @@ document.querySelectorAll('.seg').forEach((seg) => seg.addEventListener('click',
   if (k === 'look') applyMaterials();
 }));
 $('#panelToggle').addEventListener('click', () => $('#panel').classList.toggle('collapsed'));
-$('#resetBtn').addEventListener('click', () => { S = { ...DEF }; save(); setRatio(); syncUI(); resetCalib(); applyMaterials(); });
+$('#resetBtn').addEventListener('click', () => { S = { ...DEF, lang: S.lang }; save(); setRatio(); syncUI(); resetCalib(); applyMaterials(); });
 $('#calBtn').addEventListener('click', () => resetCalib());
 if (window.matchMedia('(max-width:860px)').matches) $('#panel').classList.add('collapsed');
+// static page text: [Arabic, English]
+const UI_TEXT = [
+  ['مرآة الأشعة', 'X-Ray Mirror'],
+  ['قف أمام الكاميرا، وسترى جمجمتك ودماغك وعضلات وجهك وعينيك وعظام يدك مرسومةً فوق رأسك ويدك الحقيقيين، وتتحرك معك.', 'Stand in front of the camera and you will see your skull, brain, face muscles, eyes and hand bones drawn over your real head and hands, moving with you.'],
+  ['يعمل التتبّع بالكامل داخل متصفحك (MediaPipe) — لا يُرسَل أي فيديو إلى أي خادم.', 'Tracking runs entirely in your browser (MediaPipe). No video is sent to any server.'],
+  ['ابدأ التجربة', 'Start'],
+  ['نموذج تشريحي تعليمي، ليس أشعة حقيقية ولا فحصاً طبياً.', 'Educational anatomical model, not a real X-ray or medical exam.'],
+  ['حدثت مشكلة', 'Something went wrong'],
+  ['إعادة تحميل الصفحة', 'Reload the page'],
+  ['⚙ الإعدادات', '⚙ Settings'],
+  ['لوحة التحكم (لا تظهر في التسجيل)', 'Control panel (not shown in recordings)'],
+  ['طبقات الرأس', 'Head layers'],
+  ['الجمجمة', 'Skull'],
+  ['الدماغ', 'Brain'],
+  ['عضلات الوجه', 'Facial muscles'],
+  ['العينان', 'Eyes'],
+  ['الأوعية الدموية', 'Blood vessels'],
+  ['الأذن', 'Ear'],
+  ['الجيوب الأنفية', 'Paranasal sinuses'],
+  ['الفقرات العنقية', 'Cervical spine'],
+  ['حدود الرأس', 'Head outline'],
+  ['طبقات اليد', 'Hand layers'],
+  ['عظام اليد (27)', 'Hand bones (27)'],
+  ['عضلات اليد', 'Hand muscles'],
+  ['الأعصاب ونفق الرسغ', 'Nerves and carpal tunnel'],
+  ['أوتار الأصابع', 'Finger tendons'],
+  ['حدود اليد', 'Hand outline'],
+  ['العرض', 'Display'],
+  ['إظهار كل الأسماء دائماً', 'Always show all names'],
+  ['إظهار نقاط التتبّع', 'Show tracking points'],
+  ['المظهر', 'Look'],
+  ['أشعة سينية', 'X-ray'],
+  ['نموذج ملوّن', 'Colour model'],
+  ['طريقة الكشف', 'Reveal'],
+  ['عرض كامل', 'Full view'],
+  ['عدسة الأشعة', 'X-ray lens'],
+  ['حجم العدسة', 'Lens size'],
+  ['ظهور وجهي الحقيقي', 'Show my real face'],
+  ['شكل المسرح', 'Stage shape'],
+  ['16:9 لابتوب', '16:9 laptop'],
+  ['9:16 ريلز', '9:16 reels'],
+  ['ضبط النموذج على الرأس', 'Fit the model to the head'],
+  ['الحجم', 'Size'],
+  ['أعلى / أسفل', 'Up / down'],
+  ['أمام / خلف', 'Forward / back'],
+  ['معايرة تلقائية (انظر للكاميرا مباشرة)', 'Auto-calibrate (look straight at the camera)'],
+  ['نماذج ثلاثية الأبعاد حقيقية', 'Real 3D models'],
+  ['نوع الملفات التالية (يحدّد اللون)', 'Type of the next files (sets the colour)'],
+  ['عظام (جمجمة/فقرات)', 'Bone (skull/vertebrae)'],
+  ['دماغ', 'Brain'],
+  ['عضلات', 'Muscle'],
+  ['أوعية دموية', 'Blood vessels'],
+  ['أعصاب', 'Nerves'],
+  ['🦴 جمجمة حقيقية', '🦴 Real skull'],
+  ['🦴 فقرات العنق', '🦴 Neck vertebrae'],
+  ['👁 العينان', '👁 Eyes'],
+  ['🧠 الدماغ (ثقيل)', '🧠 Brain (heavy)'],
+  ['📂 تحميل نموذج (OBJ / GLB / STL)', '📂 Load model (OBJ / GLB / STL)'],
+  ['تدوير ↻ X', 'Rotate ↻ X'],
+  ['تدوير ↻ Y', 'Rotate ↻ Y'],
+  ['تدوير ↻ Z', 'Rotate ↻ Z'],
+  ['قلب يمين/يسار', 'Flip left/right'],
+  ['ملاءمة الحجم للرأس', 'Fit size to head'],
+  ['حذف النماذج', 'Remove models'],
+  ['حجم النموذج', 'Model size'],
+  ['إظهار النموذج المحمّل', 'Show loaded model'],
+  ['إخفاء الأشكال المبسّطة', 'Hide simple shapes'],
+  ['الملفات من BodyParts3D (إظهار الحقوق)', 'Files are from BodyParts3D (show credit)'],
+  ['تسجيل وإعادة ضبط', 'Record and reset'],
+  ['● تسجيل فيديو', '● Record video'],
+  ['إعادة الضبط', 'Reset'],
+  ['طريقة الاستخدام', 'How to use'],
+  ['• الأسماء مخفية: انقر على أي جزء (أو أشر إليه بالسبابة نصف ثانية) ليظهر اسمه ومعلومة عنه، وانقر مرة أخرى لإخفائه.', '• Names are hidden: click any part (or point at it with your index finger for half a second) to see its name and a fact, and click again to hide it.'],
+  ['• في وضع «عدسة الأشعة» تتبع العدسة طرف سبابتك.', '• In “X-ray lens” mode the lens follows your index fingertip.'],
+  ['• افتح فمك ليتحرك الفك السفلي.', '• Open your mouth to move the lower jaw.'],
+  ['• يمكنك أيضاً النقر بالفأرة على أي جزء.', '• You can also click any part with the mouse.'],
+  ['• «تحميل نموذج»: اختر ملفات OBJ/GLB/STL من جهازك (مثل ملفات BodyParts3D) أو اسحبها إلى الشاشة.', '• “Load model”: choose OBJ/GLB/STL files from your device (such as BodyParts3D files) or drag them onto the stage.']
+];
+const UI_AR2EN = new Map(UI_TEXT), UI_EN2AR = new Map(UI_TEXT.map(([a, e]) => [e, a]));
+const uiOrig = new WeakMap();   // text node -> its Arabic text, so switching back is exact
+const SKIP_UI = '.langBtn, small, script, style, #loadStatus, #modelStatus, #engine, #errText, #errDetail';
+function applyLang() {
+  const en = EN(), root = document.documentElement;
+  root.lang = S.lang; root.dir = DIR(); document.title = tr('مرآة الأشعة', 'X-Ray Mirror');
+  stage.setAttribute('aria-label', tr('مسرح مرآة الأشعة', 'X-Ray Mirror stage'));
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const t = n.nodeValue.trim(); if (!t || (n.parentElement && n.parentElement.closest(SKIP_UI))) continue;
+    if (en && UI_AR2EN.has(t)) { uiOrig.set(n, t); n.nodeValue = n.nodeValue.replace(t, UI_AR2EN.get(t)); }
+    else if (!en && UI_EN2AR.has(t)) { n.nodeValue = n.nodeValue.replace(t, uiOrig.get(n) || UI_EN2AR.get(t)); }
+  }
+  document.querySelectorAll('.langBtn').forEach((b) => { b.textContent = en ? 'العربية' : 'English'; b.lang = en ? 'ar' : 'en'; });
+  $('#loadStatus').textContent = tr(...lastLoad);
+  $('#modelStatus').textContent = tr(...lastModel);
+  engineText();
+}
+let lastModel = ['حمّل ملفات من جهازك بعد الضغط على «ابدأ التجربة». ملفات BodyParts3D (FJxxxx.obj) تُعرف تلقائياً وتوضع بمقياسها الحقيقي.',
+  'After pressing Start, load files from your device. BodyParts3D files (FJxxxx.obj) are recognised automatically and placed at their real scale.'];
+function engineText() {
+  if (!det.faceDelegate) return;
+  $('#engine').textContent = tr(`المعالج: الوجه ${det.faceDelegate} · اليد ${det.handDelegate}`, `Processor: face ${det.faceDelegate} · hand ${det.handDelegate}`);
+}
+document.querySelectorAll('.langBtn').forEach((b) => b.addEventListener('click', () => {
+  S.lang = EN() ? 'ar' : 'en'; save(); applyLang();
+  try { const u = new URL(location.href); if (u.searchParams.has('lang')) { u.searchParams.set('lang', S.lang); history.replaceState(null, '', u); } } catch (e) { /* ignore */ }
+}));
 setRatio(); syncUI();
 
 // =====================================================================
@@ -311,6 +440,7 @@ const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmar
 const HAND_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 let THREE = null, vision = null, FaceLandmarkerC = null, HandLandmarkerC = null;
 const det = { face: null, hand: null, faceDelegate: '', handDelegate: '', faceOpts: null, handOpts: null };
+applyLang();
 
 async function createLM(Cls, opts) {
   try {
@@ -324,16 +454,16 @@ async function createLM(Cls, opts) {
 }
 
 const libsReady = (async () => {
-  setLoad('جارٍ تحميل مكتبة الرسوم ثلاثية الأبعاد…');
+  setLoad('جارٍ تحميل مكتبة الرسوم ثلاثية الأبعاد…', 'Loading the 3D graphics library…');
   try { THREE = await import(THREE_URL); }
-  catch (e) { throw appError('تعذّر تحميل مكتبة Three.js. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', e); }
+  catch (e) { throw appError(tr('تعذّر تحميل مكتبة Three.js. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', 'Could not load Three.js. Check your internet connection, then reload the page.'), e); }
 
-  setLoad('جارٍ تحميل محرّك الذكاء الاصطناعي MediaPipe…');
+  setLoad('جارٍ تحميل محرّك الذكاء الاصطناعي MediaPipe…', 'Loading the MediaPipe AI engine…');
   try {
     const { FilesetResolver, FaceLandmarker, HandLandmarker } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
     FaceLandmarkerC = FaceLandmarker; HandLandmarkerC = HandLandmarker;
     vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-  } catch (e) { throw appError('تعذّر تحميل MediaPipe. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', e); }
+  } catch (e) { throw appError(tr('تعذّر تحميل MediaPipe. تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة.', 'Could not load MediaPipe. Check your internet connection, then reload the page.'), e); }
 
   det.faceOpts = {
     baseOptions: { modelAssetPath: FACE_MODEL },
@@ -346,14 +476,14 @@ const libsReady = (async () => {
     runningMode: 'VIDEO', numHands: 2,
     minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.6, minTrackingConfidence: 0.5
   };
-  setLoad('جارٍ تحميل نموذج تتبّع الوجه (478 نقطة)…');
+  setLoad('جارٍ تحميل نموذج تتبّع الوجه (478 نقطة)…', 'Loading the face tracking model (478 points)…');
   try { const r = await createLM(FaceLandmarkerC, det.faceOpts); det.face = r.lm; det.faceDelegate = r.delegate; }
-  catch (e) { throw appError('تعذّر تحميل نموذج تتبّع الوجه.', e); }
-  setLoad('جارٍ تحميل نموذج تتبّع اليد (21 نقطة لكل يد)…');
+  catch (e) { throw appError(tr('تعذّر تحميل نموذج تتبّع الوجه.', 'Could not load the face tracking model.'), e); }
+  setLoad('جارٍ تحميل نموذج تتبّع اليد (21 نقطة لكل يد)…', 'Loading the hand tracking model (21 points per hand)…');
   try { const r = await createLM(HandLandmarkerC, det.handOpts); det.hand = r.lm; det.handDelegate = r.delegate; }
-  catch (e) { throw appError('تعذّر تحميل نموذج تتبّع اليد.', e); }
-  $('#engine').textContent = `المعالج: الوجه ${det.faceDelegate} · اليد ${det.handDelegate}`;
-  setLoad('النماذج جاهزة ✓ اضغط «ابدأ التجربة»');
+  catch (e) { throw appError(tr('تعذّر تحميل نموذج تتبّع اليد.', 'Could not load the hand tracking model.'), e); }
+  engineText();
+  setLoad('النماذج جاهزة ✓ اضغط «ابدأ التجربة»', 'Models ready ✓ Press Start');
 })();
 libsReady.catch(() => { /* surfaced on start click and via unhandledrejection */ });
 
@@ -362,17 +492,17 @@ libsReady.catch(() => { /* surfaced on start click and via unhandledrejection */
 // =====================================================================
 function camErrorMsg(e) {
   const n = e && e.name;
-  if (n === 'NotAllowedError' || n === 'SecurityError') return 'تم رفض إذن الكاميرا. اسمح للمتصفح باستخدام الكاميرا (رمز الكاميرا في شريط العنوان) ثم أعد تحميل الصفحة.';
-  if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'لم يتم العثور على كاميرا في هذا الجهاز.';
-  if (n === 'NotReadableError') return 'الكاميرا مستخدمة حالياً من تطبيق آخر. أغلقه ثم حاول مرة أخرى.';
-  return 'تعذّر تشغيل الكاميرا. افتح الملف في Google Chrome واسمح باستخدام الكاميرا.';
+  if (n === 'NotAllowedError' || n === 'SecurityError') return tr('تم رفض إذن الكاميرا. اسمح للمتصفح باستخدام الكاميرا (رمز الكاميرا في شريط العنوان) ثم أعد تحميل الصفحة.', 'Camera permission was denied. Allow the browser to use the camera (camera icon in the address bar), then reload the page.');
+  if (n === 'NotFoundError' || n === 'OverconstrainedError') return tr('لم يتم العثور على كاميرا في هذا الجهاز.', 'No camera was found on this device.');
+  if (n === 'NotReadableError') return tr('الكاميرا مستخدمة حالياً من تطبيق آخر. أغلقه ثم حاول مرة أخرى.', 'Another app is using the camera. Close it and try again.');
+  return tr('تعذّر تشغيل الكاميرا. افتح الملف في Google Chrome واسمح باستخدام الكاميرا.', 'Could not start the camera. Open the page in Google Chrome and allow camera access.');
 }
 $('#startBtn').addEventListener('click', async () => {
   const btn = $('#startBtn'); btn.disabled = true;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showError('هذا المتصفح لا يسمح بالوصول إلى الكاميرا هنا. افتح الملف في Google Chrome.'); btn.disabled = false; return;
+    showError(tr('هذا المتصفح لا يسمح بالوصول إلى الكاميرا هنا. افتح الملف في Google Chrome.', 'This browser does not allow camera access here. Open the page in Google Chrome.')); btn.disabled = false; return;
   }
-  setLoad('جارٍ تشغيل الكاميرا…');
+  setLoad('جارٍ تشغيل الكاميرا…', 'Starting the camera…');
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
@@ -380,8 +510,8 @@ $('#startBtn').addEventListener('click', async () => {
   video.srcObject = stream;
   try { await video.play(); } catch (e) { /* autoplay muted is allowed; continue */ }
   await new Promise((res) => { if (video.videoWidth) res(); else video.addEventListener('loadedmetadata', res, { once: true }); });
-  try { await libsReady; } catch (e) { showError(e.userMsg || 'تعذّر تحميل النماذج.', e.message); return; }
-  try { initThree(); } catch (e) { showError('تعذّر تشغيل الرسوم ثلاثية الأبعاد (WebGL). فعّل تسريع العتاد في المتصفح.', e.message); return; }
+  try { await libsReady; } catch (e) { showError(e.userMsg || tr('تعذّر تحميل النماذج.', 'Could not load the models.'), e.message); return; }
+  try { initThree(); } catch (e) { showError(tr('تعذّر تشغيل الرسوم ثلاثية الأبعاد (WebGL). فعّل تسريع العتاد في المتصفح.', 'Could not start 3D graphics (WebGL). Turn on hardware acceleration in the browser.'), e.message); return; }
   try { await document.fonts.load('700 20px Tajawal'); } catch (e) { /* font optional */ }
   $('#startOverlay').style.display = 'none';
   requestAnimationFrame(loop);
@@ -460,30 +590,81 @@ const PART_DEFS = [
   ['cervical', 'spine', 'الفقرات العنقية (3 إلى 6)', 'C3–C6 vertebrae', 'في نتوءاتها المستعرضة ثقوب يمرّ منها الشريان الفقري.'],
   ['c7', 'spine', 'الفقرة العنقية السابعة (البارزة)', 'C7 · Vertebra prominens', 'نتوؤها الشوكي طويل ويمكن تحسّسه أسفل مؤخرة العنق.']
 ];
+const FACT_EN = {
+  frontal: 'Forms the forehead and the roof of both eye sockets.',
+  parietal: 'A pair of bones that form most of the roof and sides of the skull.',
+  temporal: 'Houses the middle and inner parts of the ear.',
+  occipital: 'At the back of the skull; it has the foramen magnum, where the brain joins the spinal cord.',
+  sphenoid: 'A butterfly-shaped bone at the base of the skull that touches every other cranial bone.',
+  orbit: 'A bony socket formed by 7 bones that protects the eyeball.',
+  nasal: 'Two small bones form the bridge of the nose; the rest of the nose is cartilage.',
+  zygomatic: 'The cheekbone; it also forms part of the outer wall of the eye socket.',
+  maxilla: 'Holds the upper teeth and forms part of the roof of the mouth.',
+  mandible: 'The largest and strongest bone of the face, and the only movable bone of the skull (apart from the ear ossicles).',
+  teeth: 'An adult usually has 32 teeth.',
+  frontalLobe: 'Linked to planning, decision-making and voluntary movement.',
+  parietalLobe: 'Processes touch, pain and temperature.',
+  temporalLobe: 'Processes hearing and plays an important role in memory.',
+  occipitalLobe: 'The main centre for processing vision.',
+  cerebellum: 'Coordinates movement and keeps balance.',
+  brainstem: 'Controls basic functions such as breathing and heart rate.',
+  frontalis: 'Raises the eyebrows and wrinkles the forehead.',
+  temporalis: 'A fan-shaped chewing muscle that lifts the lower jaw.',
+  orbOculi: 'Closes the eyelids when you blink.',
+  orbOris: 'Closes and purses the lips.',
+  zygMajor: 'Lifts the corner of the mouth when you smile.',
+  masseter: 'A strong chewing muscle that lifts the lower jaw to close the mouth.',
+  buccinator: 'Presses the cheek against the teeth when chewing and blowing.',
+  eyeball: 'About 2.4 cm across in an adult.',
+  opticNerve: 'Carries visual signals from the retina to the brain.',
+  eyeMuscles: '6 muscles move each eye: 4 straight (recti) and 2 oblique.',
+  sRectus: 'Turns the eye upward.',
+  iRectus: 'Turns the eye downward.',
+  mRectus: 'Turns the eye toward the nose.',
+  lRectus: 'Turns the eye outward.',
+  sOblique: 'Its tendon runs through a loop called the trochlea; it helps turn the eye down.',
+  iOblique: 'Helps turn the eye up and outward.',
+  facialA: 'You can feel its pulse at the lower edge of the jaw, just in front of the masseter.',
+  stA: 'You can feel its pulse just in front of the ear.',
+  auricle: 'Collects sound and directs it into the ear canal; it is made of elastic cartilage.',
+  earCanal: 'About 2.5 cm long; it ends at the eardrum.',
+  eardrum: 'Vibrates with sound and passes the vibration to the ossicles.',
+  ossicles: 'The malleus, incus and stapes; the stapes is the smallest bone in the human body.',
+  cochlea: 'The hearing organ of the inner ear, a spiral of about two and a half turns.',
+  semicircular: '3 canals at right angles to each other that sense head rotation and help keep balance.',
+  frontalSinus: 'An air space inside the frontal bone, above the eye sockets.',
+  maxSinus: 'The largest paranasal sinus, in the upper jaw below the eye.',
+  ethSinus: 'A group of small air cells between the eyes.',
+  sphSinus: 'Inside the body of the sphenoid bone, behind the nasal cavity.',
+  atlas: 'Carries the skull; it is a bony ring with no vertebral body.',
+  axis: 'Has a tooth-like peg (the dens) that the atlas turns around when you turn your head.',
+  cervical: 'Holes in their transverse processes carry the vertebral artery.',
+  c7: 'Its long spinous process can be felt at the base of the back of the neck.'
+};
 // the 16 tooth types (8 per jaw): picked individually, named on click
 const TOOTH_TYPES = [
-  ['القاطع المركزي', 'central incisor', 'تقطع القواطع الطعام بحافتها الحادة.'],
-  ['القاطع الجانبي', 'lateral incisor', 'تقطع القواطع الطعام بحافتها الحادة.'],
-  ['الناب', 'canine', 'أطول الأسنان جذراً، وتمزّق الطعام.'],
-  ['الضاحك الأول', 'first premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.'],
-  ['الضاحك الثاني', 'second premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.'],
-  ['الرحى الأولى', 'first molar', 'أول سنّ دائمة تظهر في الفم عادةً، في نحو السادسة من العمر.'],
-  ['الرحى الثانية', 'second molar', 'تظهر عادةً في نحو الثانية عشرة من العمر.'],
-  ['الرحى الثالثة (ضرس العقل)', 'third molar · wisdom tooth', 'تظهر عادةً بين 17 و25 سنة، وقد لا تظهر عند بعض الناس.']
+  ['القاطع المركزي', 'central incisor', 'تقطع القواطع الطعام بحافتها الحادة.', 'Incisors cut food with their sharp edge.'],
+  ['القاطع الجانبي', 'lateral incisor', 'تقطع القواطع الطعام بحافتها الحادة.', 'Incisors cut food with their sharp edge.'],
+  ['الناب', 'canine', 'أطول الأسنان جذراً، وتمزّق الطعام.', 'The tooth with the longest root; it tears food.'],
+  ['الضاحك الأول', 'first premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.', 'Premolars crush and grind food; baby teeth have none.'],
+  ['الضاحك الثاني', 'second premolar', 'تسحق الضواحك الطعام وتطحنه، ولا توجد في الأسنان اللبنية.', 'Premolars crush and grind food; baby teeth have none.'],
+  ['الرحى الأولى', 'first molar', 'أول سنّ دائمة تظهر في الفم عادةً، في نحو السادسة من العمر.', 'Usually the first permanent tooth to come in, at about age six.'],
+  ['الرحى الثانية', 'second molar', 'تظهر عادةً في نحو الثانية عشرة من العمر.', 'Usually comes in at about age twelve.'],
+  ['الرحى الثالثة (ضرس العقل)', 'third molar · wisdom tooth', 'تظهر عادةً بين 17 و25 سنة، وقد لا تظهر عند بعض الناس.', 'Usually comes in between 17 and 25, and some people never get one.']
 ];
 for (const [jaw, jAr, jEn] of [['U', 'العلوي', 'Upper'], ['L', 'السفلي', 'Lower']]) {
-  TOOTH_TYPES.forEach(([ar, en, fact], i) => {
+  TOOTH_TYPES.forEach(([ar, en, fact, factEn], i) => {
     // molars (الرحى) are feminine in Arabic; keep "(ضرس العقل)" at the end
     const adj = i >= 5 ? jAr + 'ة' : jAr;
     const m = ar.match(/^(.*?)( \(.+\))?$/);
-    PART_DEFS.push([`tooth${jaw}${i}`, 'skull', `${m[1]} ${adj}${m[2] || ''}`, `${jEn} ${en}`, fact, { label: false }]);
+    PART_DEFS.push([`tooth${jaw}${i}`, 'skull', `${m[1]} ${adj}${m[2] || ''}`, `${jEn} ${en}`, fact, { label: false, factEn }]);
   });
 }
 const PARTS = {}; const PART_LIST = [];
 {
   let alt = 0;
   for (const [id, layer, ar, en, fact, opts] of PART_DEFS) {
-    const p = { id, layer, ar, en, fact, label: !(opts && opts.label === false), meshes: [], anchors: [], pref: 0 };
+    const p = { id, layer, ar, en, fact, factEn: (opts && opts.factEn) || FACT_EN[id], label: !(opts && opts.label === false), meshes: [], anchors: [], pref: 0 };
     PARTS[id] = p; PART_LIST.push(p);
   }
   // bilateral parts alternate preferred side so the two label columns stay balanced
@@ -1058,14 +1239,16 @@ function bp3dName(en) {
   let disk = false; const d = n.match(/^intervertebral disk of (.+)$/); if (d) { disk = true; n = d[1]; }
   const e = BP3D_AR[n]; if (!e) return null;
   const sideAr = side ? (e[1] === 'f' ? (side === 'left' ? ' اليسرى' : ' اليمنى') : (side === 'left' ? ' الأيسر' : ' الأيمن')) : '';
-  if (disk) return { ar: 'القرص بين الفقرات أسفل ' + e[0], cat: 'cartilage', fact: 'قرص غضروفي ليفي بين جسمَي فقرتين، يمتص الصدمات ويسمح بحركة العنق.' };
-  return { ar: e[0] + sideAr, cat: e[2], fact: e[3] && PARTS[e[3]] ? PARTS[e[3]].fact : null };
+  if (disk) return { ar: 'القرص بين الفقرات أسفل ' + e[0], cat: 'cartilage', fact: 'قرص غضروفي ليفي بين جسمَي فقرتين، يمتص الصدمات ويسمح بحركة العنق.',
+    factEn: 'A fibrocartilage disc between two vertebral bodies that absorbs shocks and lets the neck move.' };
+  const fp = e[3] && PARTS[e[3]];
+  return { ar: e[0] + sideAr, cat: e[2], fact: fp ? fp.fact : null, factEn: fp ? fp.factEn : null };
 }
 // BodyParts3D frame (mm, z up, face toward -y, subject's left at +x): midpoint between the two eyeball centres
 const BP3D_EYE_MID = [-0.6, -151.1, 1518.1];
 const custom = { count: 0, n: 0, bp3d: false, unit: 1, fit: 1, center: null, rot: [0, 0, 0], mirror: 1, outer: null, rotG: null, inner: null, tris: 0, jaw: [] };
 const _jA = { A: null, Ai: null, J: null, T: null };
-const modelStatus = (t) => { $('#modelStatus').textContent = t; };
+const modelStatus = (ar, en) => { lastModel = [ar, en]; $('#modelStatus').textContent = tr(ar, en); };
 function ensureCustomGroups() {
   if (custom.outer) return;
   custom.outer = new THREE.Group(); custom.rotG = new THREE.Group(); custom.inner = new THREE.Group();
@@ -1122,7 +1305,8 @@ function registerCustom(obj, fileName, type, enName) {
     if (/^mandible$/i.test(label.trim())) custom.jaw.push(m);
     const cat = known ? known.cat : type;
     PARTS[id] = { id, layer: 'custom', ar: known ? known.ar : `${CTYPE_AR[type]} من النموذج المحمّل`, en: label, label: false, meshes: [m], anchors: [], pref: 0,
-      fact: (known && known.fact) || (enName ? 'شكل حقيقي من بيانات BodyParts3D، المأخوذة من جسم رجل بالغ.' : 'شكل حقيقي من ملف حمّلته من جهازك؛ الاسم الإنجليزي مأخوذ من الملف.') };
+      fact: (known && known.fact) || (enName ? 'شكل حقيقي من بيانات BodyParts3D، المأخوذة من جسم رجل بالغ.' : 'شكل حقيقي من ملف حمّلته من جهازك؛ الاسم الإنجليزي مأخوذ من الملف.'),
+      factEn: (known && known.factEn) || (enName ? 'A real shape from BodyParts3D data, taken from an adult male body.' : 'A real shape from a file you loaded; the name comes from the file.') };
     m.userData = { part: id, mx: matX(cat), mc: matC(cat === 'eye' || cat === 'cartilage' ? cat : 'custom_' + cat), custom: true };
     m.renderOrder = 1; m.frustumCulled = true;
     allMeshes.push(m); (pickByLayer.custom = pickByLayer.custom || []).push(m);
@@ -1130,10 +1314,10 @@ function registerCustom(obj, fileName, type, enName) {
   return meshes.length;
 }
 async function loadModelFiles(files) {
-  if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; }
+  if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.', 'Press Start first, then load the model.'); return; }
   ensureCustomGroups();
   const type = S.cType; let ok = 0, parts = 0; const bad = [];
-  modelStatus(`جارٍ قراءة ${files.length} ملف…`);
+  modelStatus(`جارٍ قراءة ${files.length} ملف…`, `Reading ${files.length} file(s)…`);
   for (const f of files) {
     const ext = (f.name.split('.').pop() || '').toLowerCase();
     try {
@@ -1158,15 +1342,20 @@ async function loadModelFiles(files) {
       custom.inner.add(obj); ok++; parts += n;
     } catch (e) { console.warn('model load failed', f.name, e); bad.push(f.name); }
   }
-  if (!ok) { modelStatus('تعذّرت قراءة الملفات. الصيغ المدعومة: OBJ وGLB وSTL (وملف GLTF المضمَّن بالكامل).' + (bad.length ? ' — ' + bad.join('، ') : '')); return; }
+  if (!ok) { modelStatus('تعذّرت قراءة الملفات. الصيغ المدعومة: OBJ وGLB وSTL (وملف GLTF المضمَّن بالكامل).' + (bad.length ? ' — ' + bad.join('، ') : ''),
+    'Could not read the files. Supported formats: OBJ, GLB and STL (and self-contained GLTF).' + (bad.length ? ' — ' + bad.join(', ') : '')); return; }
   custom.count += ok; custom.type = custom.type || type;
   // BodyParts3D keeps whole-body coordinates in mm with z up, so a head part sits far above z = 0
   if (!custom.bp3d && rawBox().getCenter(new THREE.Vector3()).z > 500) custom.bp3d = true;
   fitCustom(false); S.custom = true; save(); syncUI(); applyMaterials();
   const triTxt = custom.tris >= 1000 ? Math.round(custom.tris / 1000) + ' ألف' : Math.round(custom.tris);
+  const triEn = custom.tris >= 1000 ? Math.round(custom.tris / 1000) + 'k' : Math.round(custom.tris);
   modelStatus(`تمت إضافة ${ok} ملف. المجموع: ${custom.count} ملف، ${triTxt} مثلث${custom.bp3d ? ' · BodyParts3D' : ''}.` +
     (bad.length ? ` تعذّرت قراءة: ${bad.join('، ')}.` : '') +
-    (custom.tris > 400000 ? ' النموذج كبير وقد يبطئ الأجهزة الضعيفة.' : ' اضبط الموضع بالمنزلقات إن لزم.'));
+    (custom.tris > 400000 ? ' النموذج كبير وقد يبطئ الأجهزة الضعيفة.' : ' اضبط الموضع بالمنزلقات إن لزم.'),
+    `Added ${ok} file(s). Total: ${custom.count} files, ${triEn} triangles${custom.bp3d ? ' · BodyParts3D' : ''}.` +
+    (bad.length ? ` Could not read: ${bad.join(', ')}.` : '') +
+    (custom.tris > 400000 ? ' The model is large and may slow down weaker devices.' : ' Adjust the position with the sliders if needed.'));
 }
 function clearCustom() {
   if (!custom.outer) return;
@@ -1181,9 +1370,9 @@ function clearCustom() {
   custom.inner.clear();
   Object.assign(custom, { count: 0, bp3d: false, unit: 1, fit: 1, center: null, rot: [0, 0, 0], mirror: 1, tris: 0, type: null, jaw: [] });
   if (selPart && !PARTS[selPart]) clearSel();
-  modelStatus('تم حذف النماذج المحمّلة.');
+  modelStatus('تم حذف النماذج المحمّلة.', 'Loaded models removed.');
 }
-$('#loadModelBtn').addEventListener('click', () => { if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; } $('#modelFile').click(); });
+$('#loadModelBtn').addEventListener('click', () => { if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.', 'Press Start first, then load the model.'); return; } $('#modelFile').click(); });
 $('#modelFile').addEventListener('change', (e) => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) loadModelFiles(fs); });
 document.querySelectorAll('button[data-rot]').forEach((b) => b.addEventListener('click', () => { const i = 'xyz'.indexOf(b.dataset.rot); custom.rot[i] = (custom.rot[i] + Math.PI / 2) % (Math.PI * 2); }));
 $('#mirrorModelBtn').addEventListener('click', () => { custom.mirror *= -1; });
@@ -1195,20 +1384,20 @@ if (/^https?:$/.test(location.protocol)) {
   const loadedSets = new Set();
   document.querySelectorAll('button[data-preset]').forEach((b) => b.addEventListener('click', async () => {
     const dir = b.dataset.preset;
-    if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.'); return; }
-    if (loadedSets.has(dir)) { modelStatus('هذا النموذج محمّل بالفعل.'); return; }
+    if (!scene) { modelStatus('اضغط «ابدأ التجربة» أولاً، ثم حمّل النموذج.', 'Press Start first, then load the model.'); return; }
+    if (loadedSets.has(dir)) { modelStatus('هذا النموذج محمّل بالفعل.', 'This model is already loaded.'); return; }
     const base = `models/bodyparts3d/${dir}/`;
     try {
       const ids = (await (await fetch(base + 'parts.txt')).text()).trim().split('\n').map((l) => l.split('\t')[0].trim()).filter((x) => /^FJ\d+$/.test(x));
       const files = [];
       for (let i = 0; i < ids.length; i++) {
-        modelStatus(`جارٍ تنزيل النموذج… ${i + 1} من ${ids.length}`);
+        modelStatus(`جارٍ تنزيل النموذج… ${i + 1} من ${ids.length}`, `Downloading the model… ${i + 1} of ${ids.length}`);
         const r = await fetch(base + ids[i] + '.obj'); if (!r.ok) throw new Error(r.status + ' ' + ids[i]);
         files.push(new File([await r.blob()], ids[i] + '.obj'));
       }
       loadedSets.add(dir);
       await loadModelFiles(files);
-    } catch (e) { modelStatus('تعذّر تنزيل النموذج من الموقع. حاول مرة أخرى.'); console.warn(e); }
+    } catch (e) { modelStatus('تعذّر تنزيل النموذج من الموقع. حاول مرة أخرى.', 'Could not download the model from the site. Try again.'); console.warn(e); }
   }));
   $('#clearModelBtn').addEventListener('click', () => loadedSets.clear());
 }
@@ -1227,23 +1416,23 @@ const FING = [
 ];
 const MC_AR = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس']; const MC_EN = ['1st', '2nd', '3rd', '4th', '5th'];
 const HF = {
-  mcThumb: 'مشط الإبهام أقصر عظام المشط وأكثرها حركة.',
-  mc: 'واحد من 5 عظام مشطية تشكّل راحة اليد.',
-  prox: 'السلامية القريبة هي أطول سلاميات الإصبع.',
-  mid: 'توجد السلامية الوسطى في الأصابع الأربعة فقط، لا في الإبهام.',
-  dist: 'السلامية البعيدة تدعم الظفر ولبّة الإصبع.'
+  mcThumb: ['مشط الإبهام أقصر عظام المشط وأكثرها حركة.', 'The thumb metacarpal is the shortest and most mobile metacarpal.'],
+  mc: ['واحد من 5 عظام مشطية تشكّل راحة اليد.', 'One of the 5 metacarpals that form the palm.'],
+  prox: ['السلامية القريبة هي أطول سلاميات الإصبع.', 'The proximal phalanx is the longest phalanx of the finger.'],
+  mid: ['توجد السلامية الوسطى في الأصابع الأربعة فقط، لا في الإبهام.', 'Only the four fingers have a middle phalanx; the thumb does not.'],
+  dist: ['السلامية البعيدة تدعم الظفر ولبّة الإصبع.', 'The distal phalanx supports the nail and the fingertip pad.']
 };
 const CARPALS = {
-  scaphoid: ['العظم الزورقي', 'Scaphoid', 'أكثر عظام الرسغ تعرّضاً للكسر.'],
-  lunate: ['العظم الهلالي', 'Lunate', 'على شكل هلال، في منتصف الصف القريب من الرسغ.'],
-  triquetrum: ['العظم المثلثي', 'Triquetrum', 'عظم هرمي الشكل في جهة الخنصر من الرسغ.'],
-  pisiform: ['العظم الحِمّصي', 'Pisiform', 'أصغر عظام الرسغ، ويشبه حبّة الحمّص.'],
-  trapezium: ['العظم المربّعي المنحرف', 'Trapezium', 'يتمفصل مع مشط الإبهام فيمنحه حركته الواسعة.'],
-  trapezoid: ['العظم شبه المنحرف', 'Trapezoid', 'أصغر عظام الصف البعيد من الرسغ.'],
-  capitate: ['العظم الكبير', 'Capitate', 'أكبر عظام الرسغ الثمانية.'],
-  hamate: ['العظم الكُلّابي', 'Hamate', 'له نتوء يشبه الخطّاف في جهة راحة اليد.']
+  scaphoid: ['العظم الزورقي', 'Scaphoid', 'أكثر عظام الرسغ تعرّضاً للكسر.', 'The wrist bone that breaks most often.'],
+  lunate: ['العظم الهلالي', 'Lunate', 'على شكل هلال، في منتصف الصف القريب من الرسغ.', 'Crescent-shaped, in the middle of the near (proximal) row of the wrist.'],
+  triquetrum: ['العظم المثلثي', 'Triquetrum', 'عظم هرمي الشكل في جهة الخنصر من الرسغ.', 'A pyramid-shaped bone on the little-finger side of the wrist.'],
+  pisiform: ['العظم الحِمّصي', 'Pisiform', 'أصغر عظام الرسغ، ويشبه حبّة الحمّص.', 'The smallest wrist bone, shaped like a pea.'],
+  trapezium: ['العظم المربّعي المنحرف', 'Trapezium', 'يتمفصل مع مشط الإبهام فيمنحه حركته الواسعة.', 'Joins the thumb metacarpal and gives the thumb its wide range of movement.'],
+  trapezoid: ['العظم شبه المنحرف', 'Trapezoid', 'أصغر عظام الصف البعيد من الرسغ.', 'The smallest bone in the far (distal) row of the wrist.'],
+  capitate: ['العظم الكبير', 'Capitate', 'أكبر عظام الرسغ الثمانية.', 'The largest of the eight wrist bones.'],
+  hamate: ['العظم الكُلّابي', 'Hamate', 'له نتوء يشبه الخطّاف في جهة راحة اليد.', 'Has a hook-like process on the palm side.']
 };
-function seg(id, a, b, r, ar, en, fact, group) { return { kind: 'seg', id, a, b, r, ar, en, fact, group }; }
+function seg(id, a, b, r, ar, en, f, group) { return { kind: 'seg', id, a, b, r, ar, en, fact: f[0], factEn: f[1], group }; }
 function buildHandBones(P) {
   const L = Math.max(dist(P[0], P[9]), dist(P[5], P[17]) / 0.72, 1);
   const out = [];
@@ -1252,7 +1441,7 @@ function buildHandBones(P) {
   const base = (i) => lerpP(P[0], P[i], 0.30);
   const b5 = base(5), b9 = base(9), b13 = base(13), b17 = base(17);
   const ang = Math.atan2(u.y, u.x);
-  const ell = (id, c, rx, ry) => { const d = CARPALS[id]; out.push({ kind: 'ell', id, c, rx: rx * L, ry: ry * L, rot: ang, ar: d[0], en: d[1], fact: d[2], group: 'carpal' }); };
+  const ell = (id, c, rx, ry) => { const d = CARPALS[id]; out.push({ kind: 'ell', id, c, rx: rx * L, ry: ry * L, rot: ang, ar: d[0], en: d[1], fact: d[2], factEn: d[3], group: 'carpal' }); };
   const trapezium = lerpP(P[0], P[1], 0.72), trapezoid = lerpP(P[0], b5, 0.78), capitate = lerpP(P[0], b9, 0.70), hamate = lerpP(P[0], midP(b13, b17), 0.74);
   const scaphoid = lerpP(P[0], midP(trapezium, trapezoid), 0.42), lunate = lerpP(P[0], capitate, 0.36);
   const tq0 = lerpP(P[0], hamate, 0.42); const triquetrum = { x: tq0.x + uln.x * 0.035 * L, y: tq0.y + uln.y * 0.035 * L };
@@ -1284,14 +1473,14 @@ function buildHandBones(P) {
 
 // ---------- hand muscles and nerves (2D, built from the same points as the bones)
 const HSOFT = {
-  thenar: ['عضلات الرانفة (أصل الإبهام)', 'Thenar muscles', '3 عضلات عند قاعدة الإبهام، منها العضلة المقابِلة التي تتيح لمس رؤوس الأصابع بالإبهام. يغذّيها غالباً العصب المتوسط.'],
-  hypothenar: ['عضلات الرانفة الصغرى (أصل الخنصر)', 'Hypothenar muscles', '3 عضلات عند قاعدة الخنصر تحرّكه، ويغذّيها العصب الزندي.'],
-  adductorPollicis: ['العضلة المقرِّبة للإبهام', 'Adductor pollicis', 'تقرّب الإبهام نحو راحة اليد وتمنح قبضة الإمساك قوتها، ويغذّيها العصب الزندي.'],
-  interossei: ['العضلات بين العظام المشطية', 'Interossei', 'عضلات بين عظام المشط تباعد الأصابع وتقرّبها.'],
-  lumbricals: ['العضلات الدودية (4)', 'Lumbricals', 'تنشأ من أوتار العضلة المثنية العميقة، وتثني مفاصل قاعدة الأصابع وتمدّ مفاصلها الأخرى.'],
-  medianN: ['العصب المتوسط', 'Median nerve', 'يمرّ عبر نفق الرسغ، ويغذّي الإحساس في الإبهام والسبابة والوسطى ونصف البنصر من جهة راحة اليد.'],
-  ulnarN: ['العصب الزندي', 'Ulnar nerve', 'يمرّ في قناة غويون قرب العظم الحِمّصي، ويغذّي إحساس الخنصر ونصف البنصر ومعظم عضلات اليد الصغيرة.'],
-  carpalTunnel: ['نفق الرسغ', 'Carpal tunnel', 'ممرّ بين عظام الرسغ والرباط المستعرض يمرّ فيه العصب المتوسط و9 أوتار. انضغاط العصب فيه يسبّب متلازمة نفق الرسغ.']
+  thenar: ['عضلات الرانفة (أصل الإبهام)', 'Thenar muscles', '3 عضلات عند قاعدة الإبهام، منها العضلة المقابِلة التي تتيح لمس رؤوس الأصابع بالإبهام. يغذّيها غالباً العصب المتوسط.', '3 muscles at the base of the thumb, including opponens pollicis, which lets the thumb touch the fingertips. Usually supplied by the median nerve.'],
+  hypothenar: ['عضلات الرانفة الصغرى (أصل الخنصر)', 'Hypothenar muscles', '3 عضلات عند قاعدة الخنصر تحرّكه، ويغذّيها العصب الزندي.', '3 muscles at the base of the little finger that move it; supplied by the ulnar nerve.'],
+  adductorPollicis: ['العضلة المقرِّبة للإبهام', 'Adductor pollicis', 'تقرّب الإبهام نحو راحة اليد وتمنح قبضة الإمساك قوتها، ويغذّيها العصب الزندي.', 'Pulls the thumb toward the palm and gives the grip its strength; supplied by the ulnar nerve.'],
+  interossei: ['العضلات بين العظام المشطية', 'Interossei', 'عضلات بين عظام المشط تباعد الأصابع وتقرّبها.', 'Muscles between the metacarpals that spread the fingers apart and bring them together.'],
+  lumbricals: ['العضلات الدودية (4)', 'Lumbricals', 'تنشأ من أوتار العضلة المثنية العميقة، وتثني مفاصل قاعدة الأصابع وتمدّ مفاصلها الأخرى.', 'Arise from the tendons of the deep finger flexor; they bend the knuckles and straighten the other finger joints.'],
+  medianN: ['العصب المتوسط', 'Median nerve', 'يمرّ عبر نفق الرسغ، ويغذّي الإحساس في الإبهام والسبابة والوسطى ونصف البنصر من جهة راحة اليد.', 'Passes through the carpal tunnel and gives feeling to the palm side of the thumb, index, middle and half of the ring finger.'],
+  ulnarN: ['العصب الزندي', 'Ulnar nerve', 'يمرّ في قناة غويون قرب العظم الحِمّصي، ويغذّي إحساس الخنصر ونصف البنصر ومعظم عضلات اليد الصغيرة.', 'Runs through Guyon\'s canal near the pisiform, gives feeling to the little finger and half of the ring finger, and supplies most small hand muscles.'],
+  carpalTunnel: ['نفق الرسغ', 'Carpal tunnel', 'ممرّ بين عظام الرسغ والرباط المستعرض يمرّ فيه العصب المتوسط و9 أوتار. انضغاط العصب فيه يسبّب متلازمة نفق الرسغ.', 'A passage between the wrist bones and the transverse ligament that carries the median nerve and 9 tendons. Pressure on the nerve here causes carpal tunnel syndrome.']
 };
 function buildHandSoft(P, hb) {
   const L = hb.L, out = [];
@@ -1299,7 +1488,7 @@ function buildHandSoft(P, hb) {
   const u0 = dist(P[0], P[9]) || 1; const u = { x: (P[9].x - P[0].x) / u0, y: (P[9].y - P[0].y) / u0 };    // wrist -> fingers
   const ul = dist(P[5], P[17]) || 1; const uln = { x: (P[17].x - P[5].x) / ul, y: (P[17].y - P[5].y) / ul }; // thumb side -> little-finger side
   const add = (p, d, k) => ({ x: p.x + d.x * k * L, y: p.y + d.y * k * L });
-  const info = (id, group) => ({ id, ar: HSOFT[id][0], en: HSOFT[id][1], fact: HSOFT[id][2], group });
+  const info = (id, group) => ({ id, ar: HSOFT[id][0], en: HSOFT[id][1], fact: HSOFT[id][2], factEn: HSOFT[id][3], group });
   const ellAlong = (id, a, b, ry) => { const c = midP(a, b); out.push({ kind: 'ell', c, rx: dist(a, b) / 2, ry: ry * L, rot: Math.atan2(b.y - a.y, b.x - a.x), ...info(id, 'muscle') }); };
   // muscles
   ellAlong('thenar', lerpP(B.scaphoid.c, B.trapezium.c, 0.4), lerpP(P[1], P[2], 0.75), 0.1);
@@ -1554,8 +1743,9 @@ const fEn = () => `500 ${Math.round(10 * U)}px Tajawal, sans-serif`;
 function bboxOf(pts) { let a = 1e9, b = 1e9, c2 = -1e9, d = -1e9; for (const p of pts) { if (p.x < a) a = p.x; if (p.y < b) b = p.y; if (p.x > c2) c2 = p.x; if (p.y > d) d = p.y; } return { x1: a, y1: b, x2: c2, y2: d }; }
 function rr(c, x, y, w, h, r) { c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h); }
 function measureChip(c, it) {
-  c.font = fAr(); const wa = c.measureText(it.ar).width; c.font = fEn(); const we = c.measureText(it.en).width;
-  it.w = Math.max(wa, we) + 26 * U; it.h = 14 * U + 10 * U + 12 * U;
+  const sub = subOf(it);
+  c.font = fAr(); const wa = c.measureText(nameOf(it)).width; c.font = fEn(); const we = sub ? c.measureText(sub).width : 0;
+  it.w = Math.max(wa, we) + 26 * U; it.h = sub ? 14 * U + 10 * U + 12 * U : 14 * U + 12 * U;
 }
 function layoutColumn(items, colX, alignRight, yMin, yMax) {
   items.sort((a, b) => a.ay - b.ay); const gap = 3 * U;
@@ -1579,10 +1769,12 @@ function drawChip(c, it) {
   rr(c, it.x1, it.y - it.h / 2, it.w, it.h, 7 * U);
   c.fillStyle = hi ? 'rgba(60,44,6,0.9)' : 'rgba(3,12,28,0.78)'; c.fill();
   c.strokeStyle = hi ? '#ffd25f' : 'rgba(95,212,255,0.45)'; c.lineWidth = 1 * U; c.stroke();
-  c.fillStyle = it.color; c.beginPath(); c.arc(it.x2 - 9 * U, it.y - 5 * U, 3.2 * U, 0, 7); c.fill();
-  c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'middle';
-  c.font = fAr(); c.fillStyle = '#ffffff'; c.fillText(it.ar, it.x2 - 17 * U, it.y - 5 * U);
-  c.direction = 'ltr'; c.font = fEn(); c.fillStyle = 'rgba(170,200,235,0.95)'; c.textAlign = 'right'; c.fillText(it.en, it.x2 - 17 * U, it.y + 9 * U);
+  const en = EN(), sub = subOf(it), ty = sub ? it.y - 5 * U : it.y;
+  c.fillStyle = it.color; c.beginPath(); c.arc(en ? it.x1 + 9 * U : it.x2 - 9 * U, ty, 3.2 * U, 0, 7); c.fill();
+  const tx = en ? it.x1 + 17 * U : it.x2 - 17 * U;
+  c.direction = DIR(); c.textAlign = en ? 'left' : 'right'; c.textBaseline = 'middle';
+  c.font = fAr(); c.fillStyle = '#ffffff'; c.fillText(nameOf(it), tx, ty);
+  if (sub) { c.direction = 'ltr'; c.font = fEn(); c.fillStyle = 'rgba(170,200,235,0.95)'; c.textAlign = 'right'; c.fillText(sub, tx, it.y + 9 * U); }
 }
 function projectAnchor(o) {
   o.getWorldPosition(tv); const depth = -tv.z; tv.project(camera);
@@ -1638,9 +1830,9 @@ function drawHandLabels(c, h, lens) {
   const P = h.sp; const hb = bboxOf(P);
   const a = h.anchors; const items = [
     { ax: P[0].x, ay: P[0].y, ar: `${sideAr} · 27 عظمة`, en: `${sideEn} · 27 bones` },
-    { ax: a.carpal.x, ay: a.carpal.y, ar: 'عظام الرسغ (8)', en: 'Carpals' },
-    { ax: a.mc.x, ay: a.mc.y, ar: 'عظام المشط (5)', en: 'Metacarpals' },
-    { ax: a.ph.x, ay: a.ph.y, ar: 'السلاميات (14)', en: 'Phalanges' }
+    { ax: a.carpal.x, ay: a.carpal.y, ar: 'عظام الرسغ (8)', en: 'Carpals (8)' },
+    { ax: a.mc.x, ay: a.mc.y, ar: 'عظام المشط (5)', en: 'Metacarpals (5)' },
+    { ax: a.ph.x, ay: a.ph.y, ar: 'السلاميات (14)', en: 'Phalanges (14)' }
   ].filter((it) => inLens({ x: it.ax, y: it.ay }, lens));
   if (!items.length) return;
   c.save();
@@ -1685,11 +1877,12 @@ function drawCard(c, now) {
   if (!sel) return;
   if (!sel.sticky && now - sel.t > 4500) { clearSel(); return; }
   const info = sel.hit.info; const pad = 14 * U, maxW = 290 * U;
-  c.save(); c.direction = 'rtl'; c.textBaseline = 'top';
-  c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; const tw = c.measureText(info.ar).width;
-  c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`; const lines = wrapText(c, info.fact, maxW);
+  const en = EN(), name = nameOf(info), sub = subOf(info), head = 22 * U + (sub ? 15 * U : 0) + 6 * U;
+  c.save(); c.direction = DIR(); c.textBaseline = 'top';
+  c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; const tw = c.measureText(name).width;
+  c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`; const lines = wrapText(c, factOf(info), maxW);
   const w = Math.min(maxW, Math.max(tw, ...lines.map((l) => c.measureText(l).width), 120 * U)) + pad * 2;
-  const h = pad * 2 + 22 * U + 15 * U + 6 * U + lines.length * 21 * U;
+  const h = pad * 2 + head + lines.length * 21 * U;
   let prot = null; if (face.slm && face.alpha > 0.3) { prot = bboxOf(PROTECT.map((i) => n2s(face.slm[i]))); }
   const yMin = SAFE.top + 70 * U * (S.ratio === '9:16' ? 0.6 : 1), yMax = SAFE.bottom - 30 * U;
   const cands = [[sel.x + 24 * U, sel.y - h / 2], [sel.x - 24 * U - w, sel.y - h / 2], [sel.x - w / 2, sel.y - 24 * U - h], [sel.x - w / 2, sel.y + 24 * U]];
@@ -1697,10 +1890,11 @@ function drawCard(c, now) {
   let pos = cands.find(fits) || [8 + 4 * U, yMin];
   const [x, y] = pos;
   rr(c, x, y, w, h, 12 * U); c.fillStyle = 'rgba(4,14,30,0.92)'; c.fill(); c.strokeStyle = '#ffd25f'; c.lineWidth = 1.5 * U; c.stroke();
-  c.textAlign = 'right'; c.fillStyle = '#ffd25f'; c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; c.fillText(info.ar, x + w - pad, y + pad);
-  c.direction = 'ltr'; c.fillStyle = 'rgba(170,200,235,0.95)'; c.font = `500 ${Math.round(12 * U)}px Tajawal, sans-serif`; c.fillText(info.en, x + w - pad, y + pad + 24 * U);
-  c.direction = 'rtl'; c.fillStyle = '#e8f2ff'; c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`;
-  lines.forEach((l, i) => c.fillText(l, x + w - pad, y + pad + 22 * U + 15 * U + 6 * U + i * 21 * U));
+  const tx = en ? x + pad : x + w - pad;
+  c.textAlign = en ? 'left' : 'right'; c.fillStyle = '#ffd25f'; c.font = `800 ${Math.round(19 * U)}px Tajawal, sans-serif`; c.fillText(name, tx, y + pad);
+  if (sub) { c.direction = 'ltr'; c.fillStyle = 'rgba(170,200,235,0.95)'; c.font = `500 ${Math.round(12 * U)}px Tajawal, sans-serif`; c.fillText(sub, tx, y + pad + 24 * U); }
+  c.direction = DIR(); c.fillStyle = '#e8f2ff'; c.font = `500 ${Math.round(15 * U)}px Tajawal, sans-serif`;
+  lines.forEach((l, i) => c.fillText(l, tx, y + pad + head + i * 21 * U));
   c.restore();
 }
 function drawFaceOutline(c) {
@@ -1730,14 +1924,14 @@ function drawHUD(c, now, ptr) {
   const bottom = S.ratio === '9:16' ? 1660 : SH - 12 * U;
   c.save(); c.textBaseline = 'top';
   // title (right side, RTL)
-  c.direction = 'rtl'; c.textAlign = 'right';
+  c.direction = DIR(); c.textAlign = 'right';
   c.fillStyle = '#ffffff'; c.shadowColor = 'rgba(95,212,255,0.8)'; c.shadowBlur = 12 * U;
-  c.font = `800 ${Math.round(24 * U)}px Tajawal, sans-serif`; c.fillText('مرآة الأشعة', SW - 16 * U, top);
+  c.font = `800 ${Math.round(24 * U)}px Tajawal, sans-serif`; c.fillText(tr('مرآة الأشعة', 'X-Ray Mirror'), SW - 16 * U, top);
   c.shadowBlur = 0; c.fillStyle = 'rgba(180,215,250,0.95)'; c.font = `500 ${Math.round(12 * U)}px Tajawal, sans-serif`;
-  c.fillText('تتبّع الوجه واليد بالذكاء الاصطناعي', SW - 16 * U, top + 30 * U);
+  c.fillText(tr('تتبّع الوجه واليد بالذكاء الاصطناعي', 'AI face and hand tracking'), SW - 16 * U, top + 30 * U);
   // status chip (left side)
   const fOk = face.alpha > 0.5, hOk = [...hands.values()].some((h) => h.alpha > 0.5);
-  const txt = fOk && hOk ? 'تم تتبع الوجه واليد' : fOk ? 'تم تتبع الوجه' : hOk ? 'تم تتبع اليد' : 'ابحث عن الوجه واليد…';
+  const txt = fOk && hOk ? tr('تم تتبع الوجه واليد', 'Face and hand tracked') : fOk ? tr('تم تتبع الوجه', 'Face tracked') : hOk ? tr('تم تتبع اليد', 'Hand tracked') : tr('ابحث عن الوجه واليد…', 'Looking for a face and hands…');
   const fpsTxt = `${fps} FPS`;
   c.font = `700 ${Math.round(13 * U)}px Tajawal, sans-serif`;
   const wt = c.measureText(txt).width, wf = c.measureText(fpsTxt).width;
@@ -1746,23 +1940,23 @@ function drawHUD(c, now, ptr) {
   c.fillStyle = fOk && hOk ? '#5dff9b' : fOk || hOk ? '#ffd25f' : '#ff6b6b'; c.beginPath(); c.arc(x0 + w - 13 * U, top + h / 2, 4.5 * U, 0, 7); c.fill();
   c.textBaseline = 'middle'; c.fillStyle = '#ffffff'; c.fillText(txt, x0 + w - 22 * U, top + h / 2 + 1);
   c.direction = 'ltr'; c.textAlign = 'left'; c.fillStyle = '#ffd25f'; c.fillText(fpsTxt, x0 + 12 * U, top + h / 2 + 1);
-  c.direction = 'rtl'; c.textAlign = 'right';
+  c.direction = DIR(); c.textAlign = 'right';
   // hints
-  c.textAlign = 'center'; c.direction = 'rtl'; c.font = `700 ${Math.round(16 * U)}px Tajawal, sans-serif`;
+  c.textAlign = 'center'; c.direction = DIR(); c.font = `700 ${Math.round(16 * U)}px Tajawal, sans-serif`;
   if (now - face.seen > 1500 && ![...hands.values()].some((x) => x.alpha > 0.3)) {
     c.fillStyle = 'rgba(3,12,28,0.7)'; rr(c, SW / 2 - 190 * U, SH / 2 - 22 * U, 380 * U, 44 * U, 12 * U); c.fill();
-    c.fillStyle = '#ffffff'; c.fillText('انظر إلى الكاميرا وارفع يدك', SW / 2, SH / 2);
+    c.fillStyle = '#ffffff'; c.fillText(tr('انظر إلى الكاميرا وارفع يدك', 'Look at the camera and raise your hand'), SW / 2, SH / 2);
   } else if (S.mode === 'lens' && !ptr) {
     c.fillStyle = 'rgba(3,12,28,0.7)'; rr(c, SW / 2 - 210 * U, bottom - 62 * U, 420 * U, 36 * U, 12 * U); c.fill();
-    c.fillStyle = '#ffffff'; c.fillText('ارفع إصبع السبابة لتحريك عدسة الأشعة', SW / 2, bottom - 44 * U);
+    c.fillStyle = '#ffffff'; c.fillText(tr('ارفع إصبع السبابة لتحريك عدسة الأشعة', 'Raise your index finger to move the X-ray lens'), SW / 2, bottom - 44 * U);
   }
   // disclaimer
   c.textBaseline = 'bottom'; c.font = `500 ${Math.round(11 * U)}px Tajawal, sans-serif`; c.fillStyle = 'rgba(200,220,245,0.85)';
-  c.fillText('نموذج تشريحي تعليمي، ليس أشعة حقيقية ولا فحصاً طبياً', SW / 2, bottom);
+  c.fillText(tr('نموذج تشريحي تعليمي، ليس أشعة حقيقية ولا فحصاً طبياً', 'Educational anatomical model, not a real X-ray or medical exam'), SW / 2, bottom);
   if (custom.count && S.custom && (custom.bp3d || S.bp3dCredit)) {
     c.direction = 'ltr'; c.font = `500 ${Math.round(10 * U)}px Tajawal, sans-serif`; c.fillStyle = 'rgba(200,220,245,0.75)';
     c.fillText('BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan', SW / 2, bottom - 16 * U);
-    c.direction = 'rtl';
+    c.direction = DIR();
   }
   // dwell progress ring
   if (ptr && dwell.key && dwell.prog > 0 && dwell.prog < 1) {
@@ -1837,8 +2031,8 @@ async function recoverCPU(which) {
   try {
     const lm = await (isFace ? FaceLandmarkerC : HandLandmarkerC).createFromOptions(vision, { ...(isFace ? det.faceOpts : det.handOpts), baseOptions: { ...(isFace ? det.faceOpts : det.handOpts).baseOptions, delegate: 'CPU' } });
     if (isFace) { det.face = lm; det.faceDelegate = 'CPU'; } else { det.hand = lm; det.handDelegate = 'CPU'; }
-    $('#engine').textContent = `المعالج: الوجه ${det.faceDelegate} · اليد ${det.handDelegate}`;
-  } catch (e) { showError('توقّف نموذج التتبّع عن العمل. أعد تحميل الصفحة.', e.message); }
+    engineText();
+  } catch (e) { showError(tr('توقّف نموذج التتبّع عن العمل. أعد تحميل الصفحة.', 'The tracking model stopped working. Reload the page.'), e.message); }
   recovering[which] = false;
 }
 
@@ -1925,13 +2119,13 @@ function pickMime() {
 $('#recBtn').addEventListener('click', async () => {
   const btn = $('#recBtn');
   if (rec) { rec.stop(); return; }
-  if (!window.MediaRecorder || !stage.captureStream) { showError('التسجيل غير مدعوم في هذا المتصفح. استخدم Google Chrome.'); return; }
+  if (!window.MediaRecorder || !stage.captureStream) { showError(tr('التسجيل غير مدعوم في هذا المتصفح. استخدم Google Chrome.', 'Recording is not supported in this browser. Use Google Chrome.')); return; }
   if (countdown > 0) return;
-  for (let i = 3; i > 0; i--) { countdown = i; btn.textContent = `يبدأ التسجيل بعد ${i}…`; await new Promise((r) => setTimeout(r, 1000)); }
+  for (let i = 3; i > 0; i--) { countdown = i; btn.textContent = tr(`يبدأ التسجيل بعد ${i}…`, `Recording starts in ${i}…`); await new Promise((r) => setTimeout(r, 1000)); }
   countdown = 0;
   const mime = pickMime();
   try { rec = new MediaRecorder(stage.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 8e6 } : undefined); }
-  catch (e) { showError('تعذّر بدء التسجيل.', e.message); rec = null; btn.textContent = '● تسجيل فيديو'; return; }
+  catch (e) { showError(tr('تعذّر بدء التسجيل.', 'Could not start recording.'), e.message); rec = null; btn.textContent = tr('● تسجيل فيديو', '● Record video'); return; }
   recChunks = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
   rec.onstop = () => {
@@ -1939,10 +2133,10 @@ $('#recBtn').addEventListener('click', async () => {
     const blob = new Blob(recChunks, { type }); const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `xray-mirror-${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    rec = null; clearInterval(recTimer); btn.classList.remove('rec'); btn.textContent = '● تسجيل فيديو';
+    rec = null; clearInterval(recTimer); btn.classList.remove('rec'); btn.textContent = tr('● تسجيل فيديو', '● Record video');
   };
   rec.start(250); recStart = performance.now(); btn.classList.add('rec');
-  const tick = () => { const s = Math.floor((performance.now() - recStart) / 1000); btn.textContent = `■ إيقاف التسجيل (${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')})`; };
+  const tick = () => { const s = Math.floor((performance.now() - recStart) / 1000); const mmss = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; btn.textContent = tr(`■ إيقاف التسجيل (${mmss})`, `■ Stop recording (${mmss})`); };
   tick(); recTimer = setInterval(tick, 500);
 });
 

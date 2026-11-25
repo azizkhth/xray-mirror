@@ -15,6 +15,14 @@
 
 لا تُرسَل صورة الكاميرا إلى أي خادم؛ كل المعالجة تتم داخل المتصفح.
 
+الصفحة بالعربية والإنجليزية: زر «English / العربية» في أعلى الصفحة، أو افتح الرابط مع `?lang=en`.
+
+## English
+
+A web page that opens your camera and draws the skull, brain, face muscles, eyes, ear, sinuses, neck vertebrae, and the hand bones, muscles and nerves over your real head and hands, following them as you move. Educational anatomical model, not a real X-ray or medical exam.
+
+Open https://azizkhth.github.io/xray-mirror/?lang=en in Google Chrome, press Start and allow the camera. Click a part (or point at it with your index finger for half a second) to see its name and a fact. The camera image never leaves your browser.
+
 ## التقنية
 
 - [MediaPipe Tasks Vision](https://developers.google.com/mediapipe) لتتبّع 478 نقطة في الوجه و21 نقطة في كل يد.
