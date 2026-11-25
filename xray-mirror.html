@@ -158,7 +158,18 @@ html[lang=en] .row small{display:none}
     <div class="slider"><div class="top"><span>طريقة الكشف</span></div>
       <div class="seg" data-seg="mode"><button data-val="full">عرض كامل</button><button data-val="lens">عدسة الأشعة</button></div></div>
     <div class="slider"><div class="top"><span>حجم العدسة</span><span id="v_lens"></span></div><input type="range" data-key="lens" min="0.10" max="0.45" step="0.01"></div>
-    <div class="slider"><div class="top"><span>ظهور وجهي الحقيقي</span><span id="v_cam"></span></div><input type="range" data-key="cam" min="0" max="1" step="0.01"></div>
+    <div class="slider"><div class="top"><span>ظهور الكاميرا خلف النموذج</span><span id="v_cam"></span></div><input type="range" data-key="cam" min="0" max="1" step="0.01"></div>
+    <div class="slider"><div class="top"><span>وجهي الحقيقي فوق النموذج</span><span id="v_blend"></span></div><input type="range" data-key="blend" min="0" max="0.9" step="0.01"></div>
+    <div class="slider"><div class="top"><span>سطوع النموذج</span><span id="v_bright"></span></div><input type="range" data-key="bright" min="0.5" max="2" step="0.05"></div>
+    <div class="slider"><div class="top"><span>الجزء المكشوف من الرأس</span></div>
+      <select data-key="reveal">
+        <option value="whole">الرأس كاملاً</option>
+        <option value="left">النصف الأيسر فقط</option>
+        <option value="right">النصف الأيمن فقط</option>
+        <option value="top">أعلى الرأس فقط</option>
+        <option value="lower">أسفل الوجه فقط</option>
+      </select></div>
+    <div class="slider"><div class="top"><span>نعومة حافة القطع والعدسة</span><span id="v_feather"></span></div><input type="range" data-key="feather" min="0" max="0.4" step="0.01"></div>
     <div class="slider"><div class="top"><span>شكل المسرح</span></div>
       <div class="seg" data-seg="ratio"><button data-val="16:9">16:9 لابتوب</button><button data-val="9:16">9:16 ريلز</button></div></div>
   </section>
@@ -168,6 +179,7 @@ html[lang=en] .row small{display:none}
     <div class="slider"><div class="top"><span>الحجم</span><span id="v_size"></span></div><input type="range" data-key="size" min="0.8" max="1.25" step="0.01"></div>
     <div class="slider"><div class="top"><span>أعلى / أسفل</span><span id="v_up"></span></div><input type="range" data-key="up" min="-3" max="3" step="0.1"></div>
     <div class="slider"><div class="top"><span>أمام / خلف</span><span id="v_fwd"></span></div><input type="range" data-key="fwd" min="-4" max="4" step="0.1"></div>
+    <div class="row"><label><input type="checkbox" data-key="pin">تثبيت دقيق على ملامح الوجه</label><small>Live pin</small></div>
     <div class="btns"><button id="calBtn" class="wide">معايرة تلقائية (انظر للكاميرا مباشرة)</button></div>
   </section>
 
@@ -214,6 +226,7 @@ html[lang=en] .row small{display:none}
     <div id="info">
       • الأسماء مخفية: انقر على أي جزء (أو أشر إليه بالسبابة نصف ثانية) ليظهر اسمه ومعلومة عنه، وانقر مرة أخرى لإخفائه.<br>
       • في وضع «عدسة الأشعة» تتبع العدسة طرف سبابتك.<br>
+      • لمطابقة أدق: اختر «نموذج ملوّن» وارفع «وجهي الحقيقي فوق النموذج» إلى النصف تقريباً، ثم اضبط الحجم والموضع حتى تنطبق الجمجمة على وجهك.<br>
       • افتح فمك ليتحرك الفك السفلي.<br>
       • يمكنك أيضاً النقر بالفأرة على أي جزء.<br>
       • «تحميل نموذج»: اختر ملفات OBJ/GLB/STL من جهازك (مثل ملفات BodyParts3D) أو اسحبها إلى الشاشة.<br>
@@ -263,7 +276,8 @@ const DEF = {
   skull: true, brain: true, muscles: true, eyes: true, vessels: true, ear: true, sinus: true, spine: true, headOutline: true,
   handBones: true, handMuscles: true, handNerves: true, tendons: false, handOutline: true, allNames: false, dots: false,
   look: 'xray', mode: 'full', lens: 0.24, camX: 0.38, camC: 0.85, size: 1, up: 0, fwd: 0, ratio: '16:9',
-  cType: 'bone', cSize: 1, cUp: 0, cFwd: 0, custom: true, hideSimple: false, bp3dCredit: true
+  cType: 'bone', cSize: 1, cUp: 0, cFwd: 0, custom: true, hideSimple: false, bp3dCredit: true,
+  pin: true, reveal: 'whole', feather: 0.12, blend: 0, bright: 1
 };
 const HEAD_LAYERS = ['skull', 'brain', 'muscles', 'eyes', 'vessels', 'ear', 'sinus', 'spine'];
 const LS_KEY = 'xrayMirror.v1';
@@ -301,6 +315,9 @@ function syncUI() {
   $('#v_cSize').textContent = S.cSize.toFixed(2) + '×';
   $('#v_cUp').textContent = (S.cUp > 0 ? '+' : '') + S.cUp.toFixed(1) + ' cm';
   $('#v_cFwd').textContent = (S.cFwd > 0 ? '+' : '') + S.cFwd.toFixed(1) + ' cm';
+  $('#v_feather').textContent = Math.round(S.feather * 100) + '%';
+  $('#v_blend').textContent = Math.round(S.blend * 100) + '%';
+  $('#v_bright').textContent = Math.round(S.bright * 100) + '%';
   document.querySelectorAll('select[data-key]').forEach((el) => { el.value = S[el.dataset.key]; });
 }
 document.querySelectorAll('select[data-key]').forEach((el) => el.addEventListener('change', () => {
@@ -361,7 +378,13 @@ const UI_TEXT = [
   ['عرض كامل', 'Full view'],
   ['عدسة الأشعة', 'X-ray lens'],
   ['حجم العدسة', 'Lens size'],
-  ['ظهور وجهي الحقيقي', 'Show my real face'],
+  ['ظهور الكاميرا خلف النموذج', 'Camera behind the model'],
+  ['وجهي الحقيقي فوق النموذج', 'Real me showing through'], ['سطوع النموذج', 'Model brightness'],
+  ['الجزء المكشوف من الرأس', 'Show part of the head'], ['الرأس كاملاً', 'Whole head'], ['النصف الأيسر فقط', 'Left half only'],
+  ['النصف الأيمن فقط', 'Right half only'], ['أعلى الرأس فقط', 'Top of the head only'], ['أسفل الوجه فقط', 'Lower face only'],
+  ['نعومة حافة القطع والعدسة', 'Edge feather (cut and lens)'], ['تثبيت دقيق على ملامح الوجه', 'Pin to face landmarks (more accurate)'],
+  ['• لمطابقة أدق: اختر «نموذج ملوّن» وارفع «وجهي الحقيقي فوق النموذج» إلى النصف تقريباً، ثم اضبط الحجم والموضع حتى تنطبق الجمجمة على وجهك.',
+   '• For a closer fit: choose “Colour model”, set “Real me showing through” to about half, then adjust size and position until the skull lines up with your face.'],
   ['شكل المسرح', 'Stage shape'],
   ['16:9 لابتوب', '16:9 laptop'],
   ['9:16 ريلز', '9:16 reels'],
@@ -1139,6 +1162,42 @@ function onHands(res, now) {
   }
 }
 
+// ---------------- live pinning: every frame, nudge the rendered head so its eyes and chin land on the tracked ones
+// (a 2D scale + shift in camera pixels, applied to the 3D picture, the name anchors and the click tests alike)
+const pin = { ok: false, s: 1, tx: 0, ty: 0, cx: 0, cy: 0, ax: 0, ay: 0 };
+let pinRefs = null;
+const pinMap = (p) => (pin.ok ? { x: pin.ax + pin.s * (p.x - pin.cx), y: pin.ay + pin.s * (p.y - pin.cy) } : p);
+const pinInv = (p) => (pin.ok ? { x: pin.cx + (p.x - pin.ax) / pin.s, y: pin.cy + (p.y - pin.ay) / pin.s } : p);
+function projW(o) { o.getWorldPosition(tv); tv.project(camera); return { x: (tv.x + 1) / 2 * W, y: (1 - tv.y) / 2 * H }; }
+function pinStep() {
+  const lm = face.slm;
+  if (!S.pin || !lm || lm.length < 468 || !content) { pin.ok = false; return; }
+  if (!pinRefs) {
+    pinRefs = [[IRIS_X, EYE_Y, 3.6], [-IRIS_X, EYE_Y, 3.6], CHINv].map((v) => { const o = new THREE.Object3D(); o.position.set(v[0], v[1], v[2]); content.add(o); return o; });
+    content.updateMatrixWorld(true);
+  }
+  const R = (i) => ({ x: lm[i].x * W, y: lm[i].y * H });
+  const pA = projW(pinRefs[0]), pB = projW(pinRefs[1]), pC = projW(pinRefs[2]);
+  // eye centre = middle of the two eye corners (steady when the eyes look around, unlike the iris)
+  let e1 = midP(R(33), R(133)), e2 = midP(R(263), R(362));
+  if (dist(e2, pA) + dist(e1, pB) < dist(e1, pA) + dist(e2, pB)) { const t = e1; e1 = e2; e2 = t; }
+  const ch = R(152), wc = clamp(1 - face.jaw * 6, 0, 1), ws = 2 + wc;   // the chin counts only while the mouth is closed
+  const pe = dist(pA, pB); if (pe < 4) { pin.ok = false; return; }
+  const C = { x: (pA.x + pB.x + pC.x * wc) / ws, y: (pA.y + pB.y + pC.y * wc) / ws };
+  const A = { x: (e1.x + e2.x + ch.x * wc) / ws, y: (e1.y + e2.y + ch.y * wc) / ws };
+  let sc = dist(e1, e2) / pe;
+  const pv = dist(pC, midP(pA, pB)); if (wc > 0 && pv > 4) sc = (sc + wc * dist(ch, midP(e1, e2)) / pv) / (1 + wc);
+  sc = clamp(sc, 0.85, 1.18);
+  const lim = pe * 0.5, tx = clamp(A.x - C.x, -lim, lim), ty = clamp(A.y - C.y, -lim, lim);
+  if (!pin.ok) { pin.s = sc; pin.tx = tx; pin.ty = ty; pin.ok = true; }
+  else { pin.s += (sc - pin.s) * 0.35; pin.tx += (tx - pin.tx) * 0.35; pin.ty += (ty - pin.ty) * 0.35; }
+  pin.cx = C.x; pin.cy = C.y; pin.ax = C.x + pin.tx; pin.ay = C.y + pin.ty;
+}
+// draw a WebGL-sized picture (raw camera pixels) onto the mirrored stage, with the pin correction
+function drawPinned(c, img) {
+  const k = pin.ok ? pin.s : 1, ox = pin.ok ? pin.ax - k * pin.cx : 0, oy = pin.ok ? pin.ay - k * pin.cy : 0;
+  c.save(); c.setTransform(-1, 0, 0, 1, SW, 0); c.drawImage(img, mox + ox * mk, moy + oy * mk, mdw * k, mdh * k); c.restore();
+}
 function projM(M, p) { tv.set(p[0], p[1], p[2]).applyMatrix4(M).project(camera); return { x: (tv.x + 1) / 2 * W, y: (1 - tv.y) / 2 * H }; }
 function calibrateStep() {
   if (window.__xrayNoCal) return;
@@ -1678,8 +1737,8 @@ function hitHead(p, force) {
   return hitHeadRaw(p);
 }
 function hitHeadRaw(p) {
-  if (!scene || face.alpha < 0.5 || !face.M) return null;
-  const v = s2v(p.x, p.y); ndc.set(v.x / W * 2 - 1, -(v.y / H * 2 - 1));
+  if (!scene || face.alpha < 0.5 || !face.M || !revealOK(p)) return null;
+  const v = pinInv(s2v(p.x, p.y)); ndc.set(v.x / W * 2 - 1, -(v.y / H * 2 - 1));
   raycaster.setFromCamera(ndc, camera);
   const hideSimple = S.hideSimple && custom.count > 0 && S.custom;
   let objs = []; for (const k in pickByLayer) if (S[k] && (k === 'custom' ? custom.count > 0 : !hideSimple)) objs = objs.concat(pickByLayer[k]);
@@ -1747,15 +1806,33 @@ function measureChip(c, it) {
   c.font = fAr(); const wa = c.measureText(nameOf(it)).width; c.font = fEn(); const we = sub ? c.measureText(sub).width : 0;
   it.w = Math.max(wa, we) + 26 * U; it.h = sub ? 14 * U + 10 * U + 12 * U : 14 * U + 12 * U;
 }
+// Labels remember where they were: their wanted height is smoothed, and two labels keep last frame's order
+// unless they are clearly the other way round, so names neither jump nor swap places while you move.
+const labelMem = new Map();
+function steadyLabels(items, now) {
+  for (const it of items) {
+    if (!it.key) continue;
+    let m = labelMem.get(it.key);
+    if (!m || now - m.t > 600) { m = { ay: it.ay, y: null, side: null, t: now }; labelMem.set(it.key, m); }
+    m.ay += (it.ay - m.ay) * 0.35; m.t = now; it.m = m; it.sy = m.ay;
+  }
+  if (labelMem.size > 200) for (const [k, m] of labelMem) if (now - m.t > 2000) labelMem.delete(k);
+}
 function layoutColumn(items, colX, alignRight, yMin, yMax) {
-  items.sort((a, b) => a.ay - b.ay); const gap = 3 * U;
-  for (const it of items) it.y = clamp(it.ay, yMin + it.h / 2, yMax - it.h / 2);
+  const ty = (it) => (it.sy != null ? it.sy : it.ay);
+  items.sort((a, b) => {
+    const d = ty(a) - ty(b);
+    if (a.m && b.m && a.m.y != null && b.m.y != null && Math.abs(d) < (a.h + b.h) * 0.35) return a.m.y - b.m.y;
+    return d;
+  });
+  const gap = 3 * U;
+  for (const it of items) it.y = clamp(ty(it), yMin + it.h / 2, yMax - it.h / 2);
   for (let i = 1; i < items.length; i++) { const m = items[i - 1].y + items[i - 1].h / 2 + gap + items[i].h / 2; if (items[i].y < m) items[i].y = m; }
   const n = items.length; if (n && items[n - 1].y + items[n - 1].h / 2 > yMax) {
     items[n - 1].y = yMax - items[n - 1].h / 2;
     for (let i = n - 2; i >= 0; i--) { const m = items[i + 1].y - items[i + 1].h / 2 - gap - items[i].h / 2; if (items[i].y > m) items[i].y = m; }
   }
-  for (const it of items) { if (alignRight) { it.x2 = colX; it.x1 = colX - it.w; } else { it.x1 = colX; it.x2 = colX + it.w; } it.alignRight = alignRight; }
+  for (const it of items) { if (alignRight) { it.x2 = colX; it.x1 = colX - it.w; } else { it.x1 = colX; it.x2 = colX + it.w; } it.alignRight = alignRight; if (it.m) it.m.y = it.y; }
 }
 function drawChip(c, it) {
   if (it.dim) { const a = c.globalAlpha; c.globalAlpha = a * 0.22; it.dim = false; drawChip(c, it); it.dim = true; c.globalAlpha = a; return; }
@@ -1779,7 +1856,8 @@ function drawChip(c, it) {
 function projectAnchor(o) {
   o.getWorldPosition(tv); const depth = -tv.z; tv.project(camera);
   if (tv.z > 1 || depth <= 0) return null;
-  return { ...v2s((tv.x + 1) / 2 * W, (1 - tv.y) / 2 * H), depth };
+  const q = pinMap({ x: (tv.x + 1) / 2 * W, y: (1 - tv.y) / 2 * H });
+  return { ...v2s(q.x, q.y), depth };
 }
 function inLens(p, lens) { return !lens || Math.hypot(p.x - lens.x, p.y - lens.y) < lens.r; }
 const labelYMin = () => (S.ratio === '9:16' ? 330 : 58 * U), labelYMax = () => (S.ratio === '9:16' ? 1610 : SH - 34 * U);
@@ -1798,7 +1876,8 @@ function drawHeadLabels(c, lens) {
       if (!arr[pi]) a = arr[oi]; else if (!arr[oi]) a = arr[pi]; else a = (arr[pi].depth - arr[oi].depth > 2.5) ? arr[oi] : arr[pi];
     } else a = projectAnchor(p.anchors[0]);
     if (!a || !inLens(a, lens)) continue;
-    items.push({ ax: a.x, ay: a.y, ar: p.ar, en: p.en, color: LAYER_COL[p.layer], hi: selPart === p.id || (selPart && PARTS[selPart] && p.id === 'eyeMuscles' && ['sRectus', 'iRectus', 'mRectus', 'lRectus', 'sOblique', 'iOblique'].includes(selPart)) });
+    if (!revealOK(a)) continue;
+    items.push({ key: p.id, ax: a.x, ay: a.y, ar: p.ar, en: p.en, color: LAYER_COL[p.layer], hi: selPart === p.id || (selPart && PARTS[selPart] && p.id === 'eyeMuscles' && ['sRectus', 'iRectus', 'mRectus', 'lRectus', 'sOblique', 'iOblique'].includes(selPart)) });
   }
   if (!S.allNames) items = items.filter((it) => it.hi);
   if (!items.length) return;
@@ -1807,9 +1886,17 @@ function drawHeadLabels(c, lens) {
   const pw = (pb.x2 - pb.x1) * 0.12; pb.x1 -= pw; pb.x2 += pw;
   const cx = (fb.x1 + fb.x2) / 2, fw = fb.x2 - fb.x1;
   c.save(); for (const it of items) measureChip(c, it);
+  steadyLabels(items, performance.now());
   const left = [], right = [], mid = [];
-  for (const it of items) { if (Math.abs(it.ax - cx) < fw * 0.08) mid.push(it); else (it.ax < cx ? left : right).push(it); }
+  for (const it of items) {
+    const off = it.ax - cx;
+    // a label stays on its side until its point is clearly past the middle of the face
+    if (it.m && it.m.side && Math.abs(off) < fw * 0.15) (it.m.side === 'L' ? left : right).push(it);
+    else if (Math.abs(off) < fw * 0.08) mid.push(it); else (off < 0 ? left : right).push(it);
+  }
   for (const it of mid) (left.length <= right.length ? left : right).push(it);
+  for (const it of left) if (it.m) it.m.side = 'L';
+  for (const it of right) if (it.m) it.m.side = 'R';
   const maxW = (arr) => arr.reduce((m, it) => Math.max(m, it.w), 0);
   let lx = fb.x1 - 14 * U; const lw = maxW(left); if (lx - lw < 8) lx = Math.min(8 + lw, pb.x1 - 8 * U);
   let rx = fb.x2 + 14 * U; const rw = maxW(right); if (rx + rw > SW - 8) rx = Math.max(SW - 8 - rw, pb.x2 + 8 * U);
@@ -1975,6 +2062,59 @@ function drawHUD(c, now, ptr) {
 //  Compositing
 // =====================================================================
 let headRendered = false;
+// "reveal": show only one part of the head, cut along a line that follows the face (stage pixels)
+function revealPlane() {
+  if (!S.reveal || S.reveal === 'whole' || !face.slm || face.slm.length < 468) return null;
+  const a = n2s(face.slm[10]), b = n2s(face.slm[152]); const L = dist(a, b) || 1;
+  const d = { x: (b.x - a.x) / L, y: (b.y - a.y) / L };          // down the face
+  let p, n;
+  if (S.reveal === 'top') { p = midP(n2s(face.slm[105]), n2s(face.slm[334])); n = { x: -d.x, y: -d.y }; }   // along the eyebrows
+  else if (S.reveal === 'lower') { p = n2s(face.slm[2]); n = d; }
+  else {
+    p = midP(a, b); n = { x: -d.y, y: d.x };
+    const l = n2s(face.slm[454]);                                  // a point on the person's own left side
+    const k = ((l.x - p.x) * n.x + (l.y - p.y) * n.y > 0 ? 1 : -1) * (S.reveal === 'left' ? 1 : -1);
+    n = { x: n.x * k, y: n.y * k };
+  }
+  return { p, n, f: Math.max(1, S.feather * L) };
+}
+function revealOK(pt) {
+  const r = revealPlane(); if (!r) return true;
+  return (pt.x - r.p.x) * r.n.x + (pt.y - r.p.y) * r.n.y > -r.f * 0.25;
+}
+let anatCv = null, anatCtx = null;
+function drawAnatomy(c, xr) {
+  const plane = revealPlane(), bright = Math.abs(S.bright - 1) > 0.01;
+  c.save(); c.globalAlpha = face.alpha; c.globalCompositeOperation = xr ? 'lighter' : 'source-over';
+  if (!plane && !bright) {
+    drawPinned(c, glCanvas);
+    if (xr) { c.globalAlpha = face.alpha * 0.9; drawPinned(c, bloomCanvas); }
+    c.restore(); return;
+  }
+  if (!anatCv) { anatCv = document.createElement('canvas'); anatCtx = anatCv.getContext('2d'); }
+  if (anatCv.width !== SW || anatCv.height !== SH) { anatCv.width = SW; anatCv.height = SH; }
+  const g = anatCtx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, SW, SH);
+  drawPinned(g, glCanvas);
+  if (xr) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.9; drawPinned(g, bloomCanvas); g.globalAlpha = 1; }
+  if (plane) {
+    const { p, n, f } = plane;
+    const gr = g.createLinearGradient(p.x - n.x * f / 2, p.y - n.y * f / 2, p.x + n.x * f / 2, p.y + n.y * f / 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, SW, SH);
+    g.globalCompositeOperation = 'source-over';
+    // a thin glowing line along the cut
+    const t = { x: -n.y, y: n.x }, D = Math.max(SW, SH) * 2;
+    g.strokeStyle = xr ? 'rgba(120,225,255,0.35)' : 'rgba(255,255,255,0.25)'; g.lineWidth = 1.2 * U; g.setLineDash([6 * U, 6 * U]);
+    g.beginPath(); g.moveTo(p.x - t.x * D, p.y - t.y * D); g.lineTo(p.x + t.x * D, p.y + t.y * D); g.save();
+    // keep the line inside the head area
+    const fb = bboxOf(FACE_OVAL.map((i) => n2s(face.slm[i]))); const m = (fb.x2 - fb.x1) * 0.35;
+    g.beginPath(); g.rect(fb.x1 - m, fb.y1 - m * 1.3, fb.x2 - fb.x1 + 2 * m, fb.y2 - fb.y1 + m * 1.9); g.clip();
+    g.beginPath(); g.moveTo(p.x - t.x * D, p.y - t.y * D); g.lineTo(p.x + t.x * D, p.y + t.y * D); g.stroke(); g.restore(); g.setLineDash([]);
+  }
+  if (bright) c.filter = `brightness(${S.bright})`;
+  c.drawImage(anatCv, 0, 0);
+  c.restore();
+}
 function drawRevealed(c) {
   const xr = S.look === 'xray';
   if (xr) {
@@ -1987,12 +2127,9 @@ function drawRevealed(c) {
     c.globalAlpha = S.camC; drawMirrored(c, video); c.globalAlpha = 1;
   }
   if (S.headOutline && face.alpha > 0.01) drawFaceOutline(c);
-  if (headRendered) {
-    c.save(); c.globalAlpha = face.alpha; c.globalCompositeOperation = xr ? 'lighter' : 'source-over';
-    drawMirrored(c, glCanvas);
-    if (xr) { c.globalAlpha = face.alpha * 0.9; drawMirrored(c, bloomCanvas); }
-    c.restore();
-  }
+  if (headRendered) drawAnatomy(c, xr);
+  // "real me showing through": the camera picture laid over the model, to line the two up or for a softer look
+  if (S.blend > 0.005) { c.save(); c.globalAlpha = S.blend; drawMirrored(c, video); c.restore(); }
   for (const h of hands.values()) {
     if (h.alpha < 0.01 || !h.sp) continue;
     c.save(); c.globalAlpha = h.alpha; if (xr) c.globalCompositeOperation = 'lighter'; drawHand(c, h); c.restore();
@@ -2006,6 +2143,7 @@ let lastVideoTime = -1, parity = 0, slow = false, detMs = 0, lastT = performance
 let frames = 0, fpsT = performance.now();
 const lens = { x: 0, y: 0, a: 0 };
 let ptrCache = null;
+let lensCv = null, lensCtx = null;
 
 function runDetect(now) {
   if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
@@ -2072,6 +2210,7 @@ function loop() {
   if (face.has && face.alpha > 0.01) {
     calibrateStep();
     updateHead();
+    pinStep();
     if (HEAD_LAYERS.some((k) => S[k]) || (S.custom && custom.count)) {
       renderer.render(scene, camera); headRendered = true;
       if (S.look === 'xray') { bctx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height); bctx.filter = 'blur(2px)'; bctx.drawImage(glCanvas, 0, 0, bloomCanvas.width, bloomCanvas.height); bctx.filter = 'none'; }
@@ -2094,7 +2233,17 @@ function loop() {
     if (lens.a > 0.01) {
       const R = S.lens * Math.min(SW, SH) * (1 - Math.pow(1 - lens.a, 3));
       lensObj = { x: lens.x, y: lens.y, r: R };
-      ctx.save(); ctx.beginPath(); ctx.arc(lens.x, lens.y, R, 0, Math.PI * 2); ctx.clip(); drawRevealed(ctx); ctx.restore();
+      if (S.feather > 0.005) {
+        // soft-edged lens: draw the x-ray view off screen, then fade its rim
+        if (!lensCv) { lensCv = document.createElement('canvas'); lensCtx = lensCv.getContext('2d'); }
+        if (lensCv.width !== SW || lensCv.height !== SH) { lensCv.width = SW; lensCv.height = SH; }
+        const g = lensCtx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, SW, SH);
+        drawRevealed(g);
+        const gr = g.createRadialGradient(lens.x, lens.y, R * (1 - clamp(S.feather * 1.6, 0.02, 0.6)), lens.x, lens.y, R);
+        gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, SW, SH); g.globalCompositeOperation = 'source-over';
+        ctx.drawImage(lensCv, 0, 0);
+      } else { ctx.save(); ctx.beginPath(); ctx.arc(lens.x, lens.y, R, 0, Math.PI * 2); ctx.clip(); drawRevealed(ctx); ctx.restore(); }
       ctx.save(); ctx.strokeStyle = 'rgba(120,225,255,0.95)'; ctx.lineWidth = 3 * U; ctx.shadowColor = '#5fd4ff'; ctx.shadowBlur = 18 * U;
       ctx.beginPath(); ctx.arc(lens.x, lens.y, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     } else lensObj = { x: -1e5, y: -1e5, r: 0 };
